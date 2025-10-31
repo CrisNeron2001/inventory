@@ -1,0 +1,206 @@
+{
+	"categories": [
+		{ "name": "Alimentos" },
+		{ "name": "Bebidas" },
+		{ "name": "Aseo y Limpieza" },
+		{ "name": "Lácteos" },
+		{ "name": "Panadería" },
+		{ "name": "Congelados" },
+		{ "name": "Despensa" },
+		{ "name": "Embutidos" },
+		{ "name": "Salsas y Condimentos" }
+	],
+	"brands": [
+		{ "name": "Soprole" },
+		{ "name": "Colún" },
+		{ "name": "Carozzi" },
+		{ "name": "Watts" },
+		{ "name": "Ideal" },
+		{ "name": "PF" },
+		{ "name": "Agrosuper" },
+		{ "name": "Cisne" },
+		{ "name": "Líder" }
+	],
+	"products": [
+		{
+			"name": "Leche entera 1L",
+			"description": "Leche UHT entera, origen Chile.",
+			"quantity": 48,
+			"price": 1190,
+			"category_name": "Lácteos",
+			"brand_name": "Soprole",
+			"sku": "PRD-0001",
+			"is_available": true
+		},
+		{
+			"name": "Yogur natural 165 g",
+			"description": "Yogur sin azúcar, cremoso.",
+			"quantity": 60,
+			"price": 450,
+			"category_name": "Lácteos",
+			"brand_name": "Colún",
+			"sku": "PRD-0002",
+			"is_available": true
+		},
+		{
+			"name": "Pan de molde integral 700 g",
+			"description": "Pan de molde integral rebanado.",
+			"quantity": 35,
+			"price": 1990,
+			"category_name": "Panadería",
+			"brand_name": "Ideal",
+			"sku": "PRD-0003",
+			"is_available": true
+		},
+		{
+			"name": "Aceite vegetal 900 ml",
+			"description": "Aceite para cocinar, mezcla vegetal.",
+			"quantity": 40,
+			"price": 2790,
+			"category_name": "Despensa",
+			"brand_name": "Líder",
+			"sku": "PRD-0004",
+			"is_available": true
+		},
+		{
+			"name": "Arroz grano largo 1 kg",
+			"description": "Arroz grano largo tradicional.",
+			"quantity": 50,
+			"price": 1490,
+			"category_name": "Despensa",
+			"brand_name": "Carozzi",
+			"sku": "PRD-0005",
+			"is_available": true
+		},
+		{
+			"name": "Fideos spaghetti 400 g",
+			"description": "Pasta de trigo duro.",
+			"quantity": 80,
+			"price": 1090,
+			"category_name": "Despensa",
+			"brand_name": "Carozzi",
+			"sku": "PRD-0006",
+			"is_available": true
+		},
+		{
+			"name": "Salsa de tomate 200 g",
+			"description": "Salsa de tomate para pastas.",
+			"quantity": 90,
+			"price": 650,
+			"category_name": "Salsas y Condimentos",
+			"brand_name": "Watts",
+			"sku": "PRD-0007",
+			"is_available": true
+		},
+		{
+			"name": "Atún en agua 170 g",
+			"description": "Lomo de atún en agua.",
+			"quantity": 70,
+			"price": 1590,
+			"category_name": "Despensa",
+			"brand_name": "Líder",
+			"sku": "PRD-0008",
+			"is_available": true
+		},
+		{
+			"name": "Azúcar granulada 1 kg",
+			"description": "Azúcar blanca granulada.",
+			"quantity": 55,
+			"price": 1190,
+			"category_name": "Despensa",
+			"brand_name": "Cisne",
+			"sku": "PRD-0009",
+			"is_available": true
+		},
+		{
+			"name": "Sal fina yodada 1 kg",
+			"description": "Sal fina yodada para mesa.",
+			"quantity": 60,
+			"price": 790,
+			"category_name": "Salsas y Condimentos",
+			"brand_name": "Cisne",
+			"sku": "PRD-0010",
+			"is_available": true
+		},
+		{
+			"name": "Detergente líquido 3 L",
+			"description": "Detergente para ropa, rendimiento alto.",
+			"quantity": 24,
+			"price": 6490,
+			"category_name": "Aseo y Limpieza",
+			"brand_name": "Líder",
+			"sku": "PRD-0011",
+			"is_available": true
+		},
+		{
+			"name": "Lavalozas concentrado 750 ml",
+			"description": "Detergente lavalozas concentrado.",
+			"quantity": 36,
+			"price": 1590,
+			"category_name": "Aseo y Limpieza",
+			"brand_name": "Líder",
+			"sku": "PRD-0012",
+			"is_available": true
+		},
+		{
+			"name": "Longaniza parrillera 500 g",
+			"description": "Longaniza estilo Chillán para asados.",
+			"quantity": 25,
+			"price": 4290,
+			"category_name": "Embutidos",
+			"brand_name": "PF",
+			"sku": "PRD-0013",
+			"is_available": true
+		},
+		{
+			"name": "Pechuga de pollo 1 kg",
+			"description": "Pechuga sin piel, en bandeja.",
+			"quantity": 20,
+			"price": 6490,
+			"category_name": "Alimentos",
+			"brand_name": "Agrosuper",
+			"sku": "PRD-0014",
+			"is_available": true
+		},
+		{
+			"name": "Queso mantecoso 500 g",
+			"description": "Queso mantecoso laminado.",
+			"quantity": 28,
+			"price": 4690,
+			"category_name": "Lácteos",
+			"brand_name": "Colún",
+			"sku": "PRD-0015",
+			"is_available": true
+		},
+		{
+			"name": "Manjar tradicional 400 g",
+			"description": "Dulce de leche típico chileno.",
+			"quantity": 40,
+			"price": 2290,
+			"category_name": "Lácteos",
+			"brand_name": "Soprole",
+			"sku": "PRD-0016",
+			"is_available": true
+		},
+		{
+			"name": "Mote con huesillos 500 ml",
+			"description": "Bebida típica chilena lista para tomar.",
+			"quantity": 30,
+			"price": 1490,
+			"category_name": "Bebidas",
+			"brand_name": "Watts",
+			"sku": "PRD-0017",
+			"is_available": true
+		},
+		{
+			"name": "Sopaipillas pre fritas 500 g",
+			"description": "Sopaipillas listas para hornear o freír.",
+			"quantity": 26,
+			"price": 1990,
+			"category_name": "Congelados",
+			"brand_name": "PF",
+			"sku": "PRD-0018",
+			"is_available": true
+		}
+	]
+}

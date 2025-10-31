@@ -1,0 +1,47 @@
+from core.abstracts.form import Form
+from gui.validators.product_form_validator import FormProductValidator
+from utils.helpers import field_category, field_brand, field_is_available
+from utils.constants import ALLOWED_FIELD
+from typing import Optional
+import flet as ft
+
+class AvailabilityStep(Form):
+    def __init__(self):
+        super().__init__("Disponibilidad en stock, categoría y marca", "availability")
+        self.field_is_available: Optional[ft.Dropdown] = None
+        self.field_category: Optional[ft.Dropdown] = None
+        self.field_brand: Optional[ft.Dropdown] =  None
+        self.validator = FormProductValidator()
+        
+    def create_controls(self, form_data: dict) -> list[ft.Control]:
+        self.field_is_available = field_is_available()
+        self.field_category = field_category()
+        self.field_brand = field_brand()
+        
+        return [
+            ft.Text(self.title, size=18, weight=ft.FontWeight.BOLD),
+            ft.Divider(height=20),
+            ft.Text("Estado de disponibilidad", size=16, weight=ft.FontWeight.W_500),
+			self.field_is_available,
+			ft.Divider(height=10),
+			ft.Text("Clasificación del producto:", size=16, weight=ft.FontWeight.W_500),
+			ft.Row([
+				ft.Container(self.field_category, expand=1),
+				ft.Container(self.field_brand, expand=1)
+			])
+		]
+    
+    def get_data(self) -> dict:
+        return {
+			'is_available': self.field_is_available.value if self.field_is_available is not None else '',
+			'category': self.field_category.value if self.field_category is not None else '',
+			'brand': self.field_brand.value if self.field_brand is not None else ''
+		}
+        
+    def validate(self) -> tuple[bool, list[str]]:
+        data = self.get_data()
+        return self.validator.validate_step_product_form_data("availability", data)
+    
+    def reset(self) -> None:
+        for field in ALLOWED_FIELD["field_availability_data"]:
+            setattr(self, field, None)
