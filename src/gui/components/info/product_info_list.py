@@ -31,7 +31,7 @@ class ProductInfoList(Info):
 			content=ft.Column([
 				ft.ListTile(title=ft.Text(value=f"Producto: {data.get('name', 'N/A')}")),
 				ft.ListTile(title=ft.Text(value=f"Descripción {data.get('description', 'N/A')}")),
-				ft.ListTile(title=ft.Text(value=f"Cantidad: {str(data.get('quantity', '0'))}")),
+				ft.ListTile(title=ft.Text(value=f"Stock: {str(data.get('stock', '0'))}")),
 				ft.ListTile(title=ft.Text(value=f"Precio: {price_formatted}")),
 				ft.ListTile(title=ft.Text(value=f"Código: {data.get('sku', 'N/A')}")),
 				ft.ListTile(title=ft.Text(value=f"Estado disponibilidad: {availability_text}")),

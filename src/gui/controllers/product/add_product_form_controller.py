@@ -1,9 +1,9 @@
-from gui.components.steps.product_basic_data_step import BasicDataStep
-from gui.components.steps.product_availability_step import AvailabilityStep
-from gui.components.steps.product_confirmation_step import ConfirmationStep
+from gui.components.steps.product.product_basic_data_step import BasicDataStep
+from gui.components.steps.product.product_availability_step import AvailabilityStep
+from gui.components.steps.product.product_confirmation_step import ConfirmationStep
 from services.product_service import ProductService
 from gui.validators.product_form_validator import FormProductValidator
-from gui.components.steps.product_step_navigation import StepNavigator
+from gui.components.steps.step_navigation import StepNavigator
 from config.settings import log
 from core.models.dto.product_dto import ProductDTO
 from core.models.dto.category_dto import CategoryDTO
@@ -68,11 +68,8 @@ class AddProductFormController:
 				bgcolor=ft.Colors.ON_SURFACE_VARIANT if is_current else None
 			)
             self.step_indicators.controls.append(step_indicator)
-        try:
-            if self.step_indicators.page is not None:
-                self.step_indicators.update()
-        except Exception:
-            pass
+        if self.step_indicators.page is not None:
+            self.step_indicators.update()
         
     def update_content(self):
         self.content_container.controls.clear()
@@ -130,7 +127,7 @@ class AddProductFormController:
 			product_id=autoincrement_id(),
 			name=form_data['name'],
 			description=form_data['description'],
-			quantity=int(form_data['quantity']),
+			stock=int(form_data['stock']),
 			price=int(form_data['price']),
 			sku=form_data['sku'],
 			is_available=is_available_bool,

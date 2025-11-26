@@ -18,3 +18,9 @@ class ConnectionFailure(Exception):
     def __init__(self, msg: str = "Connection error"):
         self.msg = msg
         super().__init__(self.msg)
+
+
+class AuthorizationFailure(Exception):
+    def __init__(self, msg: str = "Not authorized to perform this action"):
+        self.msg = msg
+        super().__init__(self.msg)

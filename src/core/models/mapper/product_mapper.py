@@ -12,7 +12,7 @@ def dto_to_entity(dto: ProductDTO) -> Product:
         product_id=dto.product_id,
         name=dto.name,
         description=dto.description,
-        quantity=dto.quantity,
+        stock=dto.stock,
         price=dto.price,
         sku=dto.sku,
         is_available=dto.is_available,
@@ -23,7 +23,6 @@ def dto_to_entity(dto: ProductDTO) -> Product:
     )
 
 def entity_to_dto(entity: Product) -> ProductDTO:
-    # Convertir categorías y marcas que puedan venir como string desde consultas que devuelven solo nombres
     if entity.category and isinstance(entity.category, str):
         cat_dto = CategoryDTO(category_id=None, name=entity.category)
     else:
@@ -38,7 +37,7 @@ def entity_to_dto(entity: Product) -> ProductDTO:
         product_id=entity.product_id,
         name=entity.name,
         description=entity.description,
-        quantity=entity.quantity,
+        stock=entity.stock,
         price=entity.price,
         sku=entity.sku,
         is_available=entity.is_available,
@@ -51,7 +50,7 @@ def row_to_entity(row: List[Any]) -> Product:
         product_id=row[0],
         name=row[1],
         description=row[2],
-        quantity=row[3],
+        stock=row[3],
         price=row[4],
         sku=row[5],
         is_available=row[6],
@@ -60,3 +59,9 @@ def row_to_entity(row: List[Any]) -> Product:
         category=row[9],
         brand=row[10]
     )
+
+def product_dto_to_entity(dto: ProductDTO) -> Product:
+    return dto_to_entity(dto)
+
+def product_entity_to_dto(entity: Product) -> ProductDTO:
+    return entity_to_dto(entity)

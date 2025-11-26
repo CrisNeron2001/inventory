@@ -21,11 +21,72 @@
 		{ "name": "Cisne" },
 		{ "name": "Líder" }
 	],
+	
+	"roles": [
+		{ "name": "Administrador" },
+		{ "name": "Cajero" }
+	],
+	"users": [
+		{
+			"first_name": "Admin",
+			"last_name": "User",
+			"username": "admin",
+			"password": "Admin@123",
+			"role_name": "Administrador"
+		},
+		{
+			"first_name": "Juan",
+			"last_name": "Perez",
+			"username": "cajero",
+			"password": "Cajero123",
+			"role_name": "Cajero"
+		}
+	],
+	"permissions": [
+		{ "permission_key": "product.view", "description": "Ver productos" },
+		{ "permission_key": "product.create", "description": "Crear productos" },
+		{ "permission_key": "product.delete", "description": "Eliminar productos" },
+		{ "permission_key": "product.update", "description": "Actualizar producto (todos los campos)" },
+		{ "permission_key": "product.update_details", "description": "Actualizar detalles del producto (nombre, desc, sku, brand, category)" },
+		{ "permission_key": "product.update_stock", "description": "Actualizar cantidad por ventas" },
+		{ "permission_key": "product.update_price", "description": "Actualizar precio" },
+		{ "permission_key": "product.update_is_available", "description": "Actualizar estado de disponibilidad (is_available)" },
+		{ "permission_key": "sale.create", "description": "Registrar venta" },
+		{ "permission_key": "sale.view", "description": "Ver ventas" },
+		{ "permission_key": "category.view", "description": "Ver categorias" },
+		{ "permission_key": "brand.view", "description": "Ver marcas" },
+		{ "permission_key": "reports.view_basic", "description": "Ver reportes basicos" }
+	],
+	"role_permissions": {
+		"Administrador": [
+			"product.view",
+			"product.create",
+			"product.delete",
+			"product.update",
+			"product.update_details",
+			"product.update_stock",
+			"product.update_price",
+			"product.update_is_available",
+			"sale.create",
+			"sale.view",
+			"category.view",
+			"brand.view",
+			"reports.view_basic"
+		],
+		"Cajero": [
+			"product.view",
+			"sale.create",
+			"sale.view",
+			"product.update_stock",
+			"product.update_price",
+			"product.update_is_available"
+		]
+	},
 	"products": [
 		{
 			"name": "Leche entera 1L",
 			"description": "Leche UHT entera, origen Chile.",
-			"quantity": 48,
+			"stock": 48,
 			"price": 1190,
 			"category_name": "Lácteos",
 			"brand_name": "Soprole",
@@ -35,7 +96,7 @@
 		{
 			"name": "Yogur natural 165 g",
 			"description": "Yogur sin azúcar, cremoso.",
-			"quantity": 60,
+			"stock": 60,
 			"price": 450,
 			"category_name": "Lácteos",
 			"brand_name": "Colún",
@@ -45,7 +106,7 @@
 		{
 			"name": "Pan de molde integral 700 g",
 			"description": "Pan de molde integral rebanado.",
-			"quantity": 35,
+			"stock": 35,
 			"price": 1990,
 			"category_name": "Panadería",
 			"brand_name": "Ideal",
@@ -55,7 +116,7 @@
 		{
 			"name": "Aceite vegetal 900 ml",
 			"description": "Aceite para cocinar, mezcla vegetal.",
-			"quantity": 40,
+			"stock": 40,
 			"price": 2790,
 			"category_name": "Despensa",
 			"brand_name": "Líder",
@@ -65,7 +126,7 @@
 		{
 			"name": "Arroz grano largo 1 kg",
 			"description": "Arroz grano largo tradicional.",
-			"quantity": 50,
+			"stock": 50,
 			"price": 1490,
 			"category_name": "Despensa",
 			"brand_name": "Carozzi",
@@ -75,7 +136,7 @@
 		{
 			"name": "Fideos spaghetti 400 g",
 			"description": "Pasta de trigo duro.",
-			"quantity": 80,
+			"stock": 80,
 			"price": 1090,
 			"category_name": "Despensa",
 			"brand_name": "Carozzi",
@@ -85,7 +146,7 @@
 		{
 			"name": "Salsa de tomate 200 g",
 			"description": "Salsa de tomate para pastas.",
-			"quantity": 90,
+			"stock": 90,
 			"price": 650,
 			"category_name": "Salsas y Condimentos",
 			"brand_name": "Watts",
@@ -95,7 +156,7 @@
 		{
 			"name": "Atún en agua 170 g",
 			"description": "Lomo de atún en agua.",
-			"quantity": 70,
+			"stock": 70,
 			"price": 1590,
 			"category_name": "Despensa",
 			"brand_name": "Líder",
@@ -105,7 +166,7 @@
 		{
 			"name": "Azúcar granulada 1 kg",
 			"description": "Azúcar blanca granulada.",
-			"quantity": 55,
+			"stock": 55,
 			"price": 1190,
 			"category_name": "Despensa",
 			"brand_name": "Cisne",
@@ -115,7 +176,7 @@
 		{
 			"name": "Sal fina yodada 1 kg",
 			"description": "Sal fina yodada para mesa.",
-			"quantity": 60,
+			"stock": 60,
 			"price": 790,
 			"category_name": "Salsas y Condimentos",
 			"brand_name": "Cisne",
@@ -125,7 +186,7 @@
 		{
 			"name": "Detergente líquido 3 L",
 			"description": "Detergente para ropa, rendimiento alto.",
-			"quantity": 24,
+			"stock": 24,
 			"price": 6490,
 			"category_name": "Aseo y Limpieza",
 			"brand_name": "Líder",
@@ -135,7 +196,7 @@
 		{
 			"name": "Lavalozas concentrado 750 ml",
 			"description": "Detergente lavalozas concentrado.",
-			"quantity": 36,
+			"stock": 36,
 			"price": 1590,
 			"category_name": "Aseo y Limpieza",
 			"brand_name": "Líder",
@@ -145,7 +206,7 @@
 		{
 			"name": "Longaniza parrillera 500 g",
 			"description": "Longaniza estilo Chillán para asados.",
-			"quantity": 25,
+			"stock": 25,
 			"price": 4290,
 			"category_name": "Embutidos",
 			"brand_name": "PF",
@@ -155,7 +216,7 @@
 		{
 			"name": "Pechuga de pollo 1 kg",
 			"description": "Pechuga sin piel, en bandeja.",
-			"quantity": 20,
+			"stock": 20,
 			"price": 6490,
 			"category_name": "Alimentos",
 			"brand_name": "Agrosuper",
@@ -165,7 +226,7 @@
 		{
 			"name": "Queso mantecoso 500 g",
 			"description": "Queso mantecoso laminado.",
-			"quantity": 28,
+			"stock": 28,
 			"price": 4690,
 			"category_name": "Lácteos",
 			"brand_name": "Colún",
@@ -175,7 +236,7 @@
 		{
 			"name": "Manjar tradicional 400 g",
 			"description": "Dulce de leche típico chileno.",
-			"quantity": 40,
+			"stock": 40,
 			"price": 2290,
 			"category_name": "Lácteos",
 			"brand_name": "Soprole",
@@ -185,7 +246,7 @@
 		{
 			"name": "Mote con huesillos 500 ml",
 			"description": "Bebida típica chilena lista para tomar.",
-			"quantity": 30,
+			"stock": 30,
 			"price": 1490,
 			"category_name": "Bebidas",
 			"brand_name": "Watts",
@@ -195,7 +256,7 @@
 		{
 			"name": "Sopaipillas pre fritas 500 g",
 			"description": "Sopaipillas listas para hornear o freír.",
-			"quantity": 26,
+			"stock": 26,
 			"price": 1990,
 			"category_name": "Congelados",
 			"brand_name": "PF",

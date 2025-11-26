@@ -9,7 +9,7 @@ class Product:
     product_id: Optional[int]
     name: str
     description: str
-    quantity: int
+    stock: int
     price: int
     sku: Optional[str]
     is_available: bool

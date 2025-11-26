@@ -3,6 +3,8 @@ from typing import Sequence, Optional, Callable, Any, cast
 from dataclasses import is_dataclass, asdict
 import flet as ft
 from gui.components.dialog.product.delete_product_dialog import delete_product_dialog
+from services.session_service import SessionService
+from gui.views.product.product_detail_view import product_detail_view
 
 class ProductInfoTable(Info):
     def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
@@ -29,7 +31,7 @@ class ProductInfoTable(Info):
                     "product_id": item.get("product_id"),
                     "name": item.get("name", ""),
                     "description": item.get("description", ""),
-                    "quantity": item.get("quantity", 0),
+                    "stock": item.get("stock", 0),
                     "price": item.get("price", 0),
                     "sku": item.get("sku"),
                     "is_available": item.get("is_available", True),
@@ -52,7 +54,7 @@ class ProductInfoTable(Info):
                     "product_id": d.get("product_id"),
                     "name": d.get("name", ""),
                     "description": d.get("description", ""),
-                    "quantity": d.get("quantity", 0),
+                    "stock": d.get("stock", 0),
                     "price": d.get("price", 0),
                     "sku": d.get("sku"),
                     "is_available": d.get("is_available", True),
@@ -75,7 +77,7 @@ class ProductInfoTable(Info):
                     "product_id": getattr(item, "product_id", None),
                     "name": getattr(item, "name", ""),
                     "description": getattr(item, "description", ""),
-                    "quantity": getattr(item, "quantity", 0),
+                    "stock": getattr(item, "stock", 0),
                     "price": getattr(item, "price", 0),
                     "sku": getattr(item, "sku", None),
                     "is_available": getattr(item, "is_available", True),
@@ -105,7 +107,7 @@ class ProductInfoTable(Info):
             columns=[
                 ft.DataColumn(ft.Text("Nombre")),
                 ft.DataColumn(ft.Text("Descripción")),
-                ft.DataColumn(ft.Text("Cantidad")),
+                ft.DataColumn(ft.Text("Stock")),
                 ft.DataColumn(ft.Text("Precio")),
                 ft.DataColumn(ft.Text("Código")),
                 ft.DataColumn(ft.Text("Estado Disponibilidad")),
@@ -190,24 +192,45 @@ class ProductInfoTable(Info):
     def create_product_row(self, data: dict) -> ft.DataRow:
         availability_text = "Disponible" if data.get("is_available", True) else "No disponible"
         price_formatted = f"${data.get('price', 0)}"
+        session = SessionService()
+        can_view_delete = session.has_permission("product.delete")
+        current_user = session.get_current_user()
+        role_name = None
+        if current_user and getattr(current_user, "role_inv", None):
+            role_name = getattr(current_user.role_inv, "name", None)
+        is_admin = False
+        if isinstance(role_name, str) and role_name.lower() in ("admin", "administrador", "administrator", "superuser"):
+            is_admin = True
 
         return ft.DataRow(cells=[
             ft.DataCell(ft.Text(data.get('name', 'N/A'))),
             ft.DataCell(ft.Text(data.get('description', 'N/A'))),
-            ft.DataCell(ft.Text(str(data.get('quantity', 0)))),
+            ft.DataCell(ft.Text(str(data.get('stock', 0)))),
             ft.DataCell(ft.Text(price_formatted)),
             ft.DataCell(ft.Text(data.get('sku', 'N/A'))),
             ft.DataCell(ft.Text(availability_text)),
             ft.DataCell(ft.Text(str(data.get('category', 'N/A')))),
             ft.DataCell(ft.Text(str(data.get('brand', 'N/A')))),
             ft.DataCell(ft.Row([
-                ft.IconButton(icon=ft.Icons.EDIT, tooltip="Editar", icon_color=ft.Colors.BLUE_600,
-                    on_click=lambda e, pid=data.get('product_id', 0): self.on_edit(pid)),
-                ft.IconButton(icon=ft.Icons.DELETE, tooltip="Borrar", icon_color=ft.Colors.RED_600,
-                    on_click=lambda e, pid=data.get('product_id', 0): self.on_delete(e, pid)),
-                ft.IconButton(icon=ft.Icons.REMOVE_RED_EYE, tooltip="Ver detalles", icon_color=ft.Colors.GREEN_600,
-                    on_click=lambda e, pid=data.get('product_id', 0): self.on_view(pid)),
-            ], spacing=5)),
+                ft.IconButton(
+                    icon=ft.Icons.EDIT,
+                    tooltip="Editar",
+                    icon_color=ft.Colors.BLUE_600,
+                    on_click=lambda e, pid=data.get('product_id', 0): self.on_edit(pid)
+                ),
+                *([ft.IconButton(
+                    icon=ft.Icons.DELETE,
+                    tooltip="Borrar",
+                    icon_color=ft.Colors.RED_600,
+                    disabled=not can_view_delete,
+                    on_click=lambda e, pid=data.get('product_id', 0): self.on_delete(e, pid)
+                )] if is_admin else []),
+                ft.IconButton(
+                    icon=ft.Icons.REMOVE_RED_EYE, 
+                    tooltip="Ver detalles", 
+                    icon_color=ft.Colors.GREEN_600,
+                    on_click=lambda e, pid=data.get('product_id', 0): self.on_view(e, pid)),
+                ], spacing=5)),
         ])
 
     def create_empty_state(self) -> ft.Container:
@@ -237,9 +260,22 @@ class ProductInfoTable(Info):
             cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
             e.page.update()
 
-    def on_view(self, product_id: int):
-        if self.router_callback:
-            self.router_callback(f"/products/view/{product_id}")
+    def on_view(self, e: ft.ControlEvent, product_id: int):
+        try:
+            if self.router_callback:
+                self.router_callback(f"/products/view/{product_id}")
+                return
+
+            content = product_detail_view(product_id)
+            if hasattr(e, "page") and getattr(e, "page") is not None:
+                e.page.views.append(ft.View(route=f"/products/view/{product_id}", controls=[
+                    ft.AppBar(title=ft.Text(f"Detalle producto #{product_id}")),
+                    content,
+                ]))
+                e.page.go(f"/products/view/{product_id}")
+        except Exception as ex:
+            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+            e.page.update()
 
     def on_add_product(self, e):
         if self.router_callback:
@@ -300,7 +336,7 @@ class ProductInfoTable(Info):
             columns=[
                 ft.DataColumn(ft.Text("Nombre")),
                 ft.DataColumn(ft.Text("Descripción")),
-                ft.DataColumn(ft.Text("Cantidad")),
+                ft.DataColumn(ft.Text("Stock")),
                 ft.DataColumn(ft.Text("Precio")),
                 ft.DataColumn(ft.Text("Código")),
                 ft.DataColumn(ft.Text("Estado Disponibilidad")),

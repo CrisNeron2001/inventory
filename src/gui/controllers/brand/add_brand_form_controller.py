@@ -35,18 +35,17 @@ class AddBrandFormController:
             return log.error(f"Hubo un error inesperado: {e}")
         
     def create_form_layout(self) -> ft.Container:
+        form_controls = self.brand_form.create_controls({})
         main_content = ft.Row([
-			ft.Container(
-				content=ft.Column([
-					cast(ft.Control, self.brand_form),
-				]),
-					width=300,
-					padding=ft.Padding(20, 20, 20, 20),
-					border_radius=10,
-			)
-		], alignment=ft.MainAxisAlignment.START
-		)
+            ft.Container(
+                content=ft.Column(form_controls),
+                    width=300,
+                    padding=ft.Padding(20, 20, 20, 20),
+                    border_radius=10,
+            )
+        ], alignment=ft.MainAxisAlignment.START
+        )
         return ft.Container(
-			content=main_content,
-			padding=ft.Padding(20, 20, 20, 20),
-		)
+            content=main_content,
+            padding=ft.Padding(20, 20, 20, 20),
+        )

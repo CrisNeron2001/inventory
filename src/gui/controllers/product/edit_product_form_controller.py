@@ -62,7 +62,7 @@ class EditProductFormController:
 				self.form_data = {
 					"name": getattr(product, "name", ""),
 					"description": getattr(product, "description", ""),
-					"quantity": getattr(product, "quantity", 0),
+					"stock": getattr(product, "stock", 0),
 					"price": getattr(product, "price", 0),
 					"sku": getattr(product, "sku", "") or "",
 					"is_available": "Disponible" if getattr(product, "is_available", True) else "No disponible",
@@ -104,7 +104,7 @@ class EditProductFormController:
 				self.product_id,
 				name=form_data['name'],
 				description=form_data['description'],
-				quantity=int(form_data['quantity']),
+				stock=int(form_data['stock']),
 				price=int(form_data['price']),
 				sku=form_data['sku'],
 				is_available=is_available_bool,

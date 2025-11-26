@@ -9,7 +9,7 @@ class BasicDataStep(Form):
         super().__init__("Datos básicos", "basic_data")
         self.field_name: Optional[ft.TextField] = None
         self.field_desc: Optional[ft.TextField] = None 
-        self.field_quantity: Optional[ft.TextField] = None
+        self.field_stock: Optional[ft.TextField] = None
         self.field_price: Optional[ft.TextField] = None
         self.field_sku: Optional[ft.TextField] = None
 
@@ -24,12 +24,12 @@ class BasicDataStep(Form):
 			hint_text="Ingrese descripción",
 			value=form_data.get('description', 'N/A')
 		)
-        self.field_quantity = ft.TextField(
-			label="Cantidad",
-			hint_text="Ingrese la cantidad",
+        self.field_stock = ft.TextField(
+			label="Stock",
+			hint_text="Ingrese la stock",
 			keyboard_type=ft.KeyboardType.NUMBER,
 			input_filter=ft.InputFilter(allow=True, regex_string=r"^\d*\.?\d*$"),
-			value=str(form_data.get('quantity', 0))
+			value=str(form_data.get('stock', 0))
 		)
         self.field_price = ft.TextField(
 			label="Precio",
@@ -47,7 +47,7 @@ class BasicDataStep(Form):
             ft.Text(self.title, size=18),
 			self.field_name,
 			self.field_desc,
-			self.field_quantity,
+			self.field_stock,
 			self.field_price,
 			self.field_sku
 		] 
@@ -56,7 +56,7 @@ class BasicDataStep(Form):
         return {
 			'name': self.field_name.value if self.field_name is not None else '',
 			'description': self.field_desc.value if self.field_desc is not None else '',
-			'quantity': self.field_quantity.value if self.field_quantity is not None else '0',
+			'stock': self.field_stock.value if self.field_stock is not None else '0',
 			'price': self.field_price.value if self.field_price is not None else '0',
 			'sku': self.field_sku.value if self.field_sku is not None else ''
 		}

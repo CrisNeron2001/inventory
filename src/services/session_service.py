@@ -1,0 +1,162 @@
+from typing import Optional, Set
+import os
+import json
+from datetime import datetime, timedelta
+from config.settings import log
+from services.permission_service import PermissionService
+from services.user_service import UserService
+from services.role_service import RoleService
+from core.models.dto.user_dto import UserDTO
+
+class SessionService:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SessionService, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+        self.current_user: Optional[UserDTO] = None
+        self._permissions: Set[str] = set()
+        self._perm_service = PermissionService()
+        try:
+            self._session_file = os.path.join(os.getcwd(), ".session.json")
+        except Exception:
+            self._session_file = ".session.json"
+
+        try:
+            self._load_persistent_session()
+        except Exception as ex:
+            log.info(f"No persistent session loaded: {ex}")
+
+    def set_current_user(self, user: Optional[UserDTO]) -> None:
+        self.current_user = user
+        self._permissions = set()
+        # Resolve role id either from nested role DTO or from role_inv_id field
+        if user:
+            try:
+                # If role DTO is missing but role_inv_id is present, try to resolve the role DTO
+                if not getattr(user, "role_inv", None) and getattr(user, "role_inv_id", None) is not None:
+                    try:
+                        rs = RoleService()
+                        resolved = rs.get_role_by_id(int(user.role_inv_id))
+                        if resolved:
+                            user.role_inv = resolved
+                    except Exception:
+                        # ignore resolution errors; we'll still attempt to load perms using role_inv_id
+                        pass
+
+                raw_role_id = None
+                if getattr(user, "role_inv", None):
+                    raw_role_id = getattr(user.role_inv, "role_inv_id", None)
+                if raw_role_id is None:
+                    raw_role_id = getattr(user, "role_inv_id", None)
+
+                role_id: int = int(raw_role_id) if raw_role_id is not None else 0
+                perms = self._perm_service.get_permissions_for_role(role_id)
+                if perms:
+                    self._permissions = set(perms)
+                log.info(f"Loaded permissions for role {role_id}: {self._permissions}")
+            except Exception as ex:
+                log.error(f"Error loading permissions for role {getattr(getattr(user, 'role_inv', None), 'role_inv_id', getattr(user, 'role_inv_id', None))}: {ex}")
+        try:
+            if user:
+                self._persist_session(user_id=user.user_inv_id, days=14)
+            else:
+                if os.path.exists(self._session_file):
+                    os.remove(self._session_file)
+        except Exception as ex:
+            log.error(f"Error persisting session: {ex}")
+
+    def clear(self) -> None:
+        self.current_user = None
+        self._permissions = set()
+        try:
+            if hasattr(self, "_session_file") and os.path.exists(self._session_file):
+                os.remove(self._session_file)
+        except Exception as ex:
+            log.error(f"Error removing session file: {ex}")
+
+    def logout(self) -> None:
+        """Logout helper used by UI: clears in-memory session and removes persistent session file."""
+        try:
+            self.clear()
+            log.info("User logged out and persistent session cleared.")
+        except Exception as ex:
+            log.error(f"Error during logout: {ex}")
+
+    def get_current_user(self) -> Optional[UserDTO]:
+        return self.current_user
+
+    def has_permission(self, permission_key: str) -> bool:
+        if not permission_key:
+            return False
+        return permission_key in self._permissions
+
+    def _persist_session(self, user_id: Optional[int], days: int = 14) -> None:
+        try:
+            if user_id is None:
+                return
+            data = {
+                "user_inv_id": int(user_id),
+                "expires_at": (datetime.now() + timedelta(days=days)).isoformat(),
+            }
+            with open(self._session_file, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except Exception as ex:
+            log.error(f"Failed to write session file: {ex}")
+
+    def _load_persistent_session(self) -> None:
+        if not hasattr(self, "_session_file"):
+            return
+        if not os.path.exists(self._session_file):
+            return
+        try:
+            with open(self._session_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            expires_at = data.get("expires_at")
+            if not expires_at:
+                return
+            exp = datetime.fromisoformat(expires_at)
+            if datetime.now() > exp:
+                os.remove(self._session_file)
+                return
+            user_id = data.get("user_inv_id")
+            if user_id is None:
+                return
+            svc = UserService()
+            user = svc.get_user_by_id(int(user_id))
+            if user:
+                self.current_user = user
+                try:
+                    # Resolve role DTO if missing using role_inv_id
+                    if not getattr(user, "role_inv", None) and getattr(user, "role_inv_id", None) is not None:
+                        try:
+                            rs = RoleService()
+                            resolved = rs.get_role_by_id(int(user.role_inv_id))
+                            if resolved:
+                                user.role_inv = resolved
+                        except Exception:
+                            pass
+
+                    raw_role_id = None
+                    if getattr(user, "role_inv", None):
+                        raw_role_id = getattr(user.role_inv, "role_inv_id", None)
+                    if raw_role_id is None:
+                        raw_role_id = getattr(user, "role_inv_id", None)
+
+                    role_id: int = int(raw_role_id) if raw_role_id is not None else 0
+                    perms = self._perm_service.get_permissions_for_role(role_id)
+                    if perms:
+                        self._permissions = set(perms)
+                    log.info(f"Loaded permissions for restored session role {role_id}: {self._permissions}")
+                except Exception as ex:
+                    log.error(f"Error loading permissions for restored session: {ex}")
+                log.info(f"Restored persistent session for user {user_id}")
+        except Exception as ex:
+            log.error(f"Failed to load session file: {ex}")

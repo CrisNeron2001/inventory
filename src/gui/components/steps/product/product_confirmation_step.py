@@ -13,7 +13,7 @@ class ConfirmationStep(Form):
         summary = [
 			self.summary_item("Nombre producto", form_data.get('name', 'N/A')),
 			self.summary_item("Descripción", form_data.get('description', 'N/A')),
-			self.summary_item("Cantidad", str(form_data.get('quantity', '0'))),
+			self.summary_item("Stock", str(form_data.get('quantity', '0'))),
 			self.summary_item("Precio", f"${form_data.get('price', '0')}"),
 			self.summary_item("Código", form_data.get('sku', 'N/A')),
 			self.summary_item("Disponibilidad stock", "Disponible" if form_data.get('is_available') else "No disponible"),

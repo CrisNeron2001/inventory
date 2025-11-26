@@ -11,6 +11,8 @@ from gui.components.menu.menu import define_menu_bar
 from gui.views.product.add_product_view import add_product_view
 from gui.views.category.add_category_view import add_category_view
 from gui.views.brand.add_brand_view import add_brand_view
+from gui.views.auth.login_view import login_view
+from gui.views.auth.register_view import register_view
 
 #edit
 from gui.views.product.edit_product_view import edit_product_view
@@ -19,16 +21,26 @@ from gui.views.brand.edit_brand_view import edit_brand_view
 
 #detail view
 from gui.views.product.product_detail_view import product_detail_view
+from gui.views.sale.sale_detail_view import sale_detail_view
 
 #table registrations
 from gui.views.product.product_registrations_view import product_registrations_view
 from gui.views.category.category_registrations_view import category_registrations_view
 from gui.views.brand.brand_registrations_view import brand_registrations_view
+from gui.views.sale.pos_view import pos_view
+from gui.views.sale.sale_registrations_view import sale_registrations_view
+from gui.views.sale.edit_sale_view import edit_sale_view
+from gui.views.user.user_registrations_view import user_registrations_view
+from gui.views.user.add_user_view import add_user_view
+from gui.views.user.edit_user_view import edit_user_view
+from services.session_service import SessionService
 
 #delete dialog
 from gui.components.dialog.product.delete_product_dialog import delete_product_dialog
 from gui.components.dialog.category.delete_category_dialog import delete_category_dialog
 from gui.components.dialog.brand.delete_brand_dialog import delete_brand_dialog
+from gui.components.dialog.sale.delete_sale_dialog import delete_sale_dialog
+from gui.components.dialog.user.delete_user_dialog import delete_user_dialog
 
 
 class AppRouter:
@@ -48,13 +60,29 @@ class AppRouter:
             "/categories/create": {"title": "Crear categoría", "view": self._create_category_view},
             "/brands": {"title": "Marcas", "view": self._brands_list_view},
             "/brands/create": {"title": "Crear marca", "view": self._create_brand_view},
+            "/sales/pos": {"title": "Punto de venta", "view": self._pos_view},
+            "/sales": {"title": "Ventas", "view": self._sales_list_view},
+            "/users": {"title": "Usuarios", "view": self._users_list_view},
+            "/users/create": {"title": "Crear usuario", "view": self._create_user_view},
+            "/login": {"title": "Iniciar sesión", "view": self._login_view},
+            "/register": {"title": "Crear cuenta", "view": self._register_view},
         }
 
     def start(self) -> None:
         self.page.go(self.page.route or "/")
 
     def navigate_to(self, route: str) -> None:
-        self.page.go(route)
+        try:
+            current = self.page.route
+        except Exception:
+            current = None
+
+        if current == route:
+            self.page.views.clear()
+            self._add_base_view(route)
+            self.page.update()
+        else:
+            self.page.go(route)
 
     def _route_change(self, _: ft.RouteChangeEvent) -> None:
         route = self.page.route
@@ -63,13 +91,15 @@ class AppRouter:
 
         if (
             self.product_handle_dynamic_route(route)
+            or self._user_handle_dynamic_route(route)
             or self.category_handle_dynamic_route(route)
             or self.brand_handle_dynamic_route(route)
+            or self.sale_handle_dynamic_route(route)
         ):
             self.page.update()
-            return
-
-        if route in self.routes and route != "/":
+            return	
+        
+        if route in self.routes and route not in ("/", "/login", "/register"):
             self._push_view(route, self.routes[route]["title"], self.routes[route]["view"]())
 
         self.page.update()
@@ -102,7 +132,41 @@ class AppRouter:
         )
         return self._menu_toggle_btn
 
+    def _create_back_button(self) -> ft.IconButton:
+        return ft.IconButton(
+            icon=ft.Icons.CANCEL,
+            tooltip="Atrás",
+            on_click=self._on_back,
+        )
+
+    def _on_back(self, e: ft.ControlEvent | None = None) -> None:
+        if len(self.page.views) > 1:
+            self.page.views.pop()
+            top = self.page.views[-1]
+            self.page.go(str(top.route))
+        else:
+            self.page.go("/")
+
     def _add_base_view(self, current_route: str) -> None:
+        if current_route in ("/login", "/register"):
+            self._sidebar_open = False
+            content = self._login_view() if current_route == "/login" else self._register_view()
+            layout = ft.Container(content=content, expand=True)
+
+            base = ft.View(
+                route=current_route,
+                controls=[
+                    ft.AppBar(
+                        title=ft.Text(self.routes[current_route]["title"]),
+                        bgcolor=ft.Colors.SURFACE,
+                    ),
+                    layout,
+                ],
+                padding=0,
+            )
+            self.page.views.append(base)
+            return
+
         content = self._home_view() if current_route == "/" else ft.Container(expand=True)
         layout = self._build_layout(content)
 
@@ -131,6 +195,9 @@ class AppRouter:
 
     def _push_view(self, route: str, title: str, content: ft.Control) -> None:
         layout = self._build_layout(content)
+        leading_btn = self._create_menu_button()
+        actions = [cast(ft.Control, self._create_back_button())] if route not in ("/login", "/register") else None
+
         self.page.views.append(
             ft.View(
                 route=route,
@@ -138,7 +205,8 @@ class AppRouter:
                     ft.AppBar(
                         title=ft.Text(title),
                         bgcolor=ft.Colors.SURFACE,
-                        leading=self._create_menu_button(),
+                        leading=leading_btn,
+                        actions=actions,
                     ),
                     layout,
                 ],
@@ -229,7 +297,67 @@ class AppRouter:
                 return True
         return False
 
+    def sale_handle_dynamic_route(self, route: str) -> bool:
+        handlers: Dict[str, Callable[[str], None]] = {}
+
+        def handle_view(sid: str) -> None:
+            content = sale_detail_view(int(sid))
+            self._push_view(route, f"Detalle venta #{sid}", content)
+
+        def handle_edit(sid: str) -> None:
+            content = edit_sale_view(int(sid), on_saved=lambda: self.page.go("/sales"))
+            self._push_view(route, f"Editar venta #{sid}", content)
+
+        def handle_delete(sid: str) -> None:
+            self._push_view("/sales", "Ventas", self._sales_list_view())
+            delete_sale_dialog(self.page, int(sid), on_deleted=lambda: self.page.go("/sales"))
+
+        handlers = {
+            "/sales/delete/": handle_delete,
+            "/sales/view/": handle_view,
+            "/sales/edit/": handle_edit,
+        }
+
+        for prefix, handler in handlers.items():
+            if route.startswith(prefix):
+                sid = route.split("/")[-1]
+                try:
+                    handler(sid)
+                except Exception as ex:
+                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                return True
+        return False
+
+    def _user_handle_dynamic_route(self, route: str) -> bool:
+        handlers: Dict[str, Callable[[str], None]] = {}
+
+        def handle_delete(uid: str) -> None:
+            self._push_view("/users", "Usuarios", self._users_list_view())
+            delete_user_dialog(self.page, int(uid), on_deleted=lambda: self.page.go("/users"))
+
+        def handle_edit(uid: str) -> None:
+            content = edit_user_view(int(uid), on_saved=lambda: self.page.go("/users"))
+            self._push_view(route, f"Editar usuario #{uid}", content)
+
+        handlers = {
+            "/users/delete/": handle_delete,
+            "/users/edit/": handle_edit,
+        }
+
+        for prefix, handler in handlers.items():
+            if route.startswith(prefix):
+                uid = route.split("/")[-1]
+                try:
+                    handler(uid)
+                except Exception as ex:
+                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                return True
+        return False
+
     def _home_view(self) -> ft.Container:
+        session = SessionService()
+        if session.get_current_user() is None:
+            return login_view(self.navigate_to)
         return product_registrations_view(self.navigate_to)
 
     def _quick_card(self, title: str, icon: str, route: str) -> ft.Container:
@@ -251,6 +379,12 @@ class AppRouter:
     def _products_list_view(self) -> ft.Container:
         return product_registrations_view(self.navigate_to)
 
+    def _users_list_view(self) -> ft.Container:
+        return user_registrations_view(self.navigate_to)
+
+    def _create_user_view(self) -> ft.Container:
+        return add_user_view(self.navigate_to)
+
     def _create_product_view(self) -> ft.Container:
         return add_product_view()
 
@@ -265,3 +399,16 @@ class AppRouter:
 
     def _create_brand_view(self) -> ft.Container:
         return add_brand_view()
+
+    def _pos_view(self) -> ft.Container:
+        return pos_view(self.navigate_to)
+    
+
+    def _sales_list_view(self) -> ft.Container:
+        return sale_registrations_view(self.navigate_to)
+
+    def _login_view(self) -> ft.Container:
+        return login_view(self.navigate_to)
+
+    def _register_view(self) -> ft.Container:
+        return register_view(self.navigate_to)

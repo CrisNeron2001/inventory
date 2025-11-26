@@ -7,8 +7,8 @@ class FormProductValidator:
             errors.append("El nombre del producto es requerido")
         
         try:
-            quantity = int(data.get('quantity', '0'))
-            if quantity <= 0:
+            stock = int(data.get('stock', '0'))
+            if stock <= 0:
                 errors.append("La cantidad debe ser mayor o igual a 0")
         except ValueError:
             errors.append("La cantidad debe ser un número válido")

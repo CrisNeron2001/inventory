@@ -1,21 +1,21 @@
 #============(CREACION DE TABLA)=============>
 
 create_category= """
-    CREATE TABLE IF NOT EXISTS category (
-        category_id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+	CREATE TABLE IF NOT EXISTS category (
+		category_id SERIAL PRIMARY KEY,
+		name VARCHAR(100) NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
 """
 
 create_brand= """
-    CREATE TABLE IF NOT EXISTS brand (
-        brand_id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ); 
+	CREATE TABLE IF NOT EXISTS brand (
+		brand_id SERIAL PRIMARY KEY,
+		name VARCHAR(100) NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	); 
 """
 
 create_product= """
@@ -23,7 +23,7 @@ create_product= """
 		product_id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
 		description TEXT NULL,
-		quantity INTEGER NOT NULL,
+		stock INTEGER NOT NULL,
 		price INTEGER NOT NULL,
         category_id INTEGER,
         brand_id INTEGER,
@@ -36,6 +36,226 @@ create_product= """
 	);
 """
 
+create_user_inv = """
+	CREATE TABLE IF NOT EXISTS user_inv (
+		user_inv_id SERIAL PRIMARY KEY,
+		role_inv_id INTEGER,
+		first_name VARCHAR(35) NOT NULL,
+		last_name VARCHAR(35) NULL,
+		username VARCHAR(35) NOT NULL UNIQUE,
+		password VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (role_inv_id) REFERENCES role_inv(role_inv_id) ON DELETE SET NULL
+	);
+"""
+
+create_role_inv = """
+	CREATE TABLE IF NOT EXISTS role_inv(
+		role_inv_id SERIAL PRIMARY KEY,
+		name VARCHAR(25) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+""" 
+
+create_cart = """
+	CREATE TABLE IF NOT EXISTS cart(
+		cart_id SERIAL PRIMARY KEY,
+		user_inv_id INTEGER NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_inv_id) REFERENCES user_inv(user_inv_id) ON DELETE CASCADE
+	);
+"""
+
+create_cart_product = """
+	CREATE TABLE IF NOT EXISTS cart_product(
+		cart_id INTEGER,
+		product_id INTEGER,
+		quantity INTEGER NOT NULL,
+		PRIMARY KEY (cart_id, product_id),
+		FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE,
+		FOREIGN KEY (product_id) REFERENCES product(product_id) ON DELETE CASCADE
+	);
+"""
+
+create_sale = """
+	CREATE TABLE IF NOT EXISTS sale (
+		sale_id SERIAL PRIMARY KEY,
+		cart_id INTEGER UNIQUE,
+		unit_price INTEGER NOT NULL,
+		total_price INTEGER NOT NULL,
+		sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		notes TEXT NULL,
+		amount_price INTEGER NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE
+	);
+"""
+
+#==================(CREACION DE TABLAS PERMISOS)====================>
+
+create_permission = """
+	CREATE TABLE IF NOT EXISTS permission (
+		permission_key VARCHAR(100) PRIMARY KEY,
+		description TEXT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+"""
+
+create_role_permission = """
+	CREATE TABLE IF NOT EXISTS role_permission (
+		role_inv_id INTEGER NOT NULL,
+		permission_key VARCHAR(100) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (role_inv_id, permission_key),
+		FOREIGN KEY (role_inv_id) REFERENCES role_inv(role_inv_id) ON DELETE CASCADE,
+		FOREIGN KEY (permission_key) REFERENCES permission(permission_key) ON DELETE CASCADE
+	);
+"""
+
+#==================(CRUD PERMISSION / ROLE_PERMISSION)====================>
+
+insert_permission = """
+	INSERT INTO permission (permission_key, description)
+	VALUES (%s, %s)
+	ON CONFLICT (permission_key) DO NOTHING;
+"""
+
+insert_role_permission = """
+	INSERT INTO role_permission (role_inv_id, permission_key)
+	VALUES (%s, %s)
+	ON CONFLICT (role_inv_id, permission_key) DO NOTHING;
+"""
+
+select_permission_by_key = """
+	SELECT permission_key, description, created_at
+	FROM permission
+	WHERE permission_key = %s;
+"""
+
+select_all_permissions = """
+	SELECT permission_key, description, created_at
+	FROM permission
+	ORDER BY permission_key;
+"""
+
+select_permissions_by_role = """
+	SELECT rp.permission_key
+	FROM role_permission rp
+	WHERE rp.role_inv_id = %s;
+"""
+
+delete_role_permission = """
+	DELETE FROM role_permission
+	WHERE role_inv_id = %s AND permission_key = %s;
+"""
+
+delete_permission = """
+	DELETE FROM permission
+	WHERE permission_key = %s;
+"""
+
+#==================(CRUD ROLE_INV)====================>
+
+insert_role_inv = """
+	INSERT INTO role_inv (name)
+	VALUES (%s)
+	RETURNING role_inv_id, name, created_at, updated_at;
+"""
+
+select_role_by_id = """
+	SELECT role_inv_id, name, created_at, updated_at
+	FROM role_inv
+	WHERE role_inv_id = %s;
+"""
+
+select_all_roles = """
+	SELECT role_inv_id, name, created_at, updated_at
+	FROM role_inv
+	ORDER BY name;
+"""
+
+update_role_inv = """
+	UPDATE role_inv
+	SET name = %s, updated_at = CURRENT_TIMESTAMP
+	WHERE role_inv_id = %s
+	RETURNING role_inv_id, name, created_at, updated_at;
+"""
+
+delete_role_inv = """
+	DELETE FROM role_inv
+	WHERE role_inv_id = %s;
+"""
+
+#==================(CRUD USER_INV)====================>
+
+insert_user_inv = """
+	INSERT INTO user_inv (role_inv_id, first_name, last_name, username, password)
+	VALUES (%s, %s, %s, %s, %s)
+	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, created_at, updated_at;
+"""
+
+select_user_by_id = """
+	SELECT 
+		u.user_inv_id, 
+		u.role_inv_id, 
+		u.first_name, 
+		u.last_name, 
+		u.username, 
+		u.created_at, 
+		u.updated_at,
+		r.name as role_name
+	FROM user_inv u
+	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
+	WHERE u.user_inv_id = %s;
+"""
+
+select_user_by_username = """
+	SELECT 
+		u.user_inv_id, 
+		u.role_inv_id, 
+		u.first_name, 
+		u.last_name, 
+		u.username, 
+		u.password, 
+		u.created_at, 
+		u.updated_at,
+		r.name as role_name
+	FROM user_inv u
+	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
+	WHERE u.username = %s;
+"""
+
+select_all_users = """
+	SELECT 
+		u.user_inv_id,	 
+		u.role_inv_id, 
+		u.first_name, 
+		u.last_name, 
+		u.username, 
+		u.created_at, 
+		u.updated_at,
+		r.name as role_name
+	FROM user_inv u
+	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
+	ORDER BY u.username;
+"""
+
+update_user_inv = """
+	UPDATE user_inv
+	SET role_inv_id = %s, first_name = %s, last_name = %s, username = %s, password = %s, updated_at = CURRENT_TIMESTAMP
+	WHERE user_inv_id = %s
+	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, created_at, updated_at;
+"""
+
+delete_user_inv = """
+	DELETE FROM user_inv
+	WHERE user_inv_id = %s;
+"""
+
 #=============(CREACION DE INDICES)====================>
 
 create_indexes= """
@@ -43,6 +263,15 @@ create_indexes= """
 	CREATE INDEX IF NOT EXISTS idx_product_brand ON product(brand_id);
 	CREATE INDEX IF NOT EXISTS idx_product_name ON product(name);
 	CREATE INDEX IF NOT EXISTS idx_product_sku ON product(sku);
+	CREATE INDEX IF NOT EXISTS idx_sale_cart ON sale(cart_id);
+	CREATE INDEX IF NOT EXISTS idx_sale_date ON sale(sale_date);
+	CREATE INDEX IF NOT EXISTS idx_category_name ON category(name);
+	CREATE INDEX IF NOT EXISTS idx_brand_name ON brand(name);
+	CREATE INDEX IF NOT EXISTS idx_userinv_username ON user_inv(username);
+	CREATE INDEX IF NOT EXISTS idx_roleinv_name ON role_inv(name);
+	CREATE INDEX IF NOT EXISTS idx_permission_key ON permission(permission_key);
+	CREATE INDEX IF NOT EXISTS idx_rolepermission_role ON role_permission(role_inv_id);
+	CREATE INDEX IF NOT EXISTS idx_cart_user_inv ON cart(user_inv_id);
 """
 
 #==================(COMPROBAR TABLAS)==================>
@@ -51,7 +280,7 @@ checks_tables = """
 	SELECT table_name 
 	FROM information_schema.tables
 	WHERE table_schema='public'
-		AND table_name IN ('category', 'brand', 'product');
+		AND table_name IN ('category', 'brand', 'product', 'sale', 'user_inv', 'role_inv', 'permission', 'role_permission', 'cart', 'cart_product');
 """
 
 #==================(CRUD CATEGORIA)====================>
@@ -130,7 +359,7 @@ insert_product= """
     INSERT INTO product (
         name, 
         description, 
-        quantity, 
+        stock, 
         price, 
         category_id, 
         brand_id, 
@@ -142,7 +371,7 @@ insert_product= """
 		product_id, 
 		name, 
 		description, 
-		quantity, 
+		stock, 
 		price, 
 		sku,
 		is_available,
@@ -163,7 +392,7 @@ select_product_by_id= """
 		p.product_id,
 		p.name, 
 		p.description, 
-		p.quantity, 
+		p.stock, 
 		p.price, 
 		p.sku,
 		p.is_available,
@@ -182,7 +411,7 @@ select_all_products= """
 		p.product_id,
 		p.name,
 		p.description, 
-		p.quantity, 
+		p.stock, 
 		p.price, 
 		p.sku,
 		p.is_available,
@@ -201,7 +430,7 @@ update_product= """
     SET 
 		name = %s, 
 		description = %s, 
-		quantity = %s, 
+		stock = %s, 
 		price = %s, 
         category_id = %s, 
         brand_id = %s, 
@@ -213,7 +442,7 @@ update_product= """
 		product_id, 
 		name, 
 		description, 
-		quantity, 
+		stock, 
 		price, 
 		sku,
 		is_available,
@@ -233,3 +462,120 @@ delete_product= """
 	DELETE FROM product
 	WHERE product_id = %s;
 """
+
+#==================(CRUD VENTA)====================>
+
+insert_sale = """
+	INSERT INTO sale (cart_id, unit_price, total_price, notes, amount_price)
+	VALUES (%s, %s, %s, %s, %s)
+	RETURNING sale_id, cart_id, unit_price, total_price, sale_date, notes, amount_price, created_at, updated_at;
+"""
+
+select_sale_by_id = """
+	SELECT 
+		s.sale_id, 
+		s.cart_id,
+		s.unit_price, 
+		s.total_price, 
+		s.sale_date, 
+		s.notes, 
+		s.amount_price,
+		s.created_at, 
+		s.updated_at
+	FROM sale s
+	LEFT JOIN cart c ON s.cart_id = c.cart_id
+	WHERE s.sale_id = %s;
+"""
+
+select_all_sales = """
+	SELECT 
+		s.sale_id, 
+		s.cart_id,
+		s.unit_price, 
+		s.total_price, 
+		s.sale_date,
+		s.notes, 
+		s.amount_price,
+		s.created_at, 
+		s.updated_at
+	FROM sale s
+	LEFT JOIN cart c ON s.cart_id = c.cart_id
+	ORDER BY s.sale_date DESC;
+"""
+
+delete_sale = """
+	DELETE FROM sale
+	WHERE sale_id = %s;
+"""
+
+update_sale = """
+	UPDATE sale
+	SET cart_id = %s,
+		unit_price = %s,
+		total_price = %s,
+		notes = %s,
+		amount_price = %s,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE sale_id = %s
+	RETURNING sale_id, cart_id, unit_price, total_price, sale_date, notes, amount_price, created_at, updated_at;
+"""
+
+#==================(CRUD CARRITO)====================>
+
+insert_cart = """
+	INSERT INTO cart (user_inv_id)
+	VALUES (%s)
+	RETURNING cart_id, user_inv_id, created_at, updated_at;
+"""
+
+select_all_carts = """
+	SELECT
+		cp.cart_id,
+		c.user_inv_id,
+		p.product_id,
+		p.name,
+		p.price,
+		cp.quantity
+	FROM cart_product cp
+	LEFT JOIN cart c ON cp.cart_id = c.cart_id
+	LEFT JOIN user_inv u ON c.user_inv_id = u.user_inv_id
+	LEFT JOIN product p ON cp.product_id = p.product_id;
+"""
+
+select_cart_by_id = """
+	SELECT
+		cp.cart_id,
+		c.user_inv_id,
+		p.product_id,
+		p.name,
+		p.price,
+		cp.quantity
+	FROM cart_product cp
+	LEFT JOIN cart c ON cp.cart_id = c.cart_id
+	LEFT JOIN user_inv u ON c.user_inv_id = u.user_inv_id
+	LEFT JOIN product p ON cp.product_id = p.product_id
+	WHERE cp.cart_id = %s;
+"""
+
+insert_cart_product = """
+	INSERT INTO cart_product(cart_id, product_id, quantity)
+	VALUES (%s, %s, %s)
+	ON CONFLICT (cart_id, product_id) DO UPDATE
+	SET quantity = cart_product.quantity + EXCLUDED.quantity
+	RETURNING cart_id, product_id, quantity;
+"""
+
+remove_product_from_cart = """
+	DELETE FROM cart_product
+	WHERE product_id = %s AND cart_id = %s
+	RETURNING cart_id, product_id, quantity;
+"""
+
+# Decrement product stock only if there's enough stock remaining
+update_product_decrease_if_enough = """
+	UPDATE product
+	SET stock = stock - %s
+	WHERE product_id = %s AND stock >= %s
+	RETURNING stock;
+"""
+

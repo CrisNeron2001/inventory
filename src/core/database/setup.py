@@ -3,6 +3,13 @@ from core.database.queries import (
     create_category,
     create_brand,
     create_product,
+    create_cart,
+    create_cart_product,
+    create_user_inv,
+    create_role_inv,
+    create_sale,
+    create_permission,
+    create_role_permission,
     create_indexes,
     checks_tables
 )
@@ -21,9 +28,16 @@ class DatabaseSetup:
         try:
             log.info("Procedimiento de creación de tablas.")
             if self.db_conn and self.cursor:
+                self.cursor.execute(create_role_inv)
+                self.cursor.execute(create_user_inv)
                 self.cursor.execute(create_category)
                 self.cursor.execute(create_brand)
                 self.cursor.execute(create_product)
+                self.cursor.execute(create_cart)
+                self.cursor.execute(create_cart_product)
+                self.cursor.execute(create_sale)
+                self.cursor.execute(create_permission)
+                self.cursor.execute(create_role_permission)
                 self.cursor.execute(create_indexes)
                 self.conn.commit()
                 log.info("Todas las tablas han sido creadas exitosamente")
@@ -41,7 +55,11 @@ class DatabaseSetup:
             log.info("Procedimiento de comprobar tablas existentes.")
             if self.cursor:
                 self.cursor.execute(checks_tables)
-                tables_name: list[str] = ["category", "brand", "product"]
+                tables_name: list[str] = [
+                    "category", "brand", "product",
+                    "role_inv", "user_inv", "sale",
+                    "permission", "role_permission"
+                ]
                 existing = {row[0] for row in self.cursor.fetchall()}
                 missing = set(tables_name) - existing
                 if missing:

@@ -24,7 +24,7 @@ class ProductDAO:
 				(
                     product.name,
                     product.description,
-                    product.quantity,
+                    product.stock,
                     product.price,
                     (product.category.category_id if product.category else None),
                     (product.brand.brand_id if product.brand else None),
@@ -70,7 +70,7 @@ class ProductDAO:
 				(
                     product.name,
                     product.description,
-                    product.quantity,
+                    product.stock,
                     product.price,
                     (product.category.category_id if product.category else None),
                     (product.brand.brand_id if product.brand else None),
