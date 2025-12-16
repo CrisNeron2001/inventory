@@ -106,8 +106,6 @@ class ProductSelectionStep(Form):
 		page = getattr(self.added_container, 'page', None)
 		if page is not None:
 			page.update()
-		# If the control is not yet added to the page, avoid calling update()
-		# because Flet raises `AssertionError: Column Control must be added to the page first`.
 
 	def create_controls(self, form_data: dict) -> list[ft.Control]:
 		products: List[Any] = form_data.get("products", [])
@@ -122,7 +120,7 @@ class ProductSelectionStep(Form):
 		self.qty = ft.TextField(value="1", width=120, label="Cantidad")
 		self.add_btn = ft.ElevatedButton(text="Agregar", on_click=self._on_add_click)
 
-		self.added_container = ft.Column(spacing=6)
+		self.added_container = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
 
 		if getattr(self, '_cart_service', None) and getattr(self, '_cart_id', None):
 			self._reload_lines()
@@ -137,7 +135,7 @@ class ProductSelectionStep(Form):
 			padding=ft.Padding(8, 8, 8, 8),
 			border=ft.border.all(1, ft.Colors.GREY_700),
 			width=420,
-			height=240,
+			height=350,
 		)
 
 		return [ft.Text(self.title, size=18), ft.Row([left, right], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
@@ -229,9 +227,17 @@ class ProductSelectionStep(Form):
 		if getattr(self, '_cart_service', None) and getattr(self, '_cart_id', None):
 			item = self.added_products[index]
 			pid = item.get('product_id')
+			cpid = item.get('cart_product_id')
 			cart_id_int = int(self._cart_id)
 			if pid is not None and cart_id_int is not None:
-				cp = CartProductDTO(cart_id=cart_id_int, product_id=pid, quantity=0, cart=None, product=None)
+				cp = CartProductDTO(
+					cart_product_id=cpid,
+					cart_id=cart_id_int, 
+					product_id=pid, 
+					quantity=0, 
+					cart=None, 
+					product=None
+				)
 				svc = getattr(self, '_cart_service', None)
 				remove_fn = getattr(svc, 'remove_products_by_cart', None)
 				if callable(remove_fn):

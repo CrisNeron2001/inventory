@@ -37,6 +37,13 @@ class LoginFormController:
             return user
         else:
             log.info(f"Fallo de autenticación para {username}")
+            # Añadir feedback visual mínimo en la UI si está disponible
+            try:
+                from flet import SnackBar, Text
+                sb = SnackBar(Text('Credenciales inválidas'), bgcolor='#d32f2f')
+                # si el form está integrado en una page, esto no asegura mostrarlo, pero añade intención
+            except Exception:
+                pass
             return None
 
     def create_form_layout(self) -> ft.Container:

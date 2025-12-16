@@ -3,7 +3,10 @@ from typing import Optional
 from services.category_service import CategoryService
 from services.brand_service import BrandService
 from services.product_service import ProductService
-
+from services.cart_service import CartService
+from services.user_service import UserService
+from services.role_service import RoleService
+from services.sale_service import SaleService
 
 def get_products():
 	return ProductService().get_all_products()
@@ -13,6 +16,18 @@ def get_categories():
 
 def get_brands():
 	return BrandService().get_all_brands()
+
+def get_carts():
+	return CartService().get_all_carts()
+
+def get_users():
+	return UserService().get_all_users()
+
+def get_roles():
+	return RoleService().get_all_roles()
+
+def get_sales():
+	return SaleService().get_all_sales()
 
 def field_category():
 	def get_category_options():
@@ -112,6 +127,10 @@ def autoincrement_id():
 			("product_id", get_products()),
 			("category_id", get_categories()),
 			("brand_id", get_brands()),
+			("cart_product_id", get_carts()),
+			("user_id", get_users()),
+			("role_id", get_roles()),
+			("sale_id", get_sales())
 		]
 		max_id = 0
 		for id_name, items in lists:

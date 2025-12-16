@@ -9,6 +9,7 @@ from typing import Any, List
 
 def dto_to_entity(dto: CartProductDTO) -> CartProduct:
 	return CartProduct(
+		cart_product_id=dto.cart_product_id,
 		cart_id=dto.cart_id,
 		product_id=dto.product_id,
 		quantity=dto.quantity,
@@ -17,80 +18,65 @@ def dto_to_entity(dto: CartProductDTO) -> CartProduct:
 	)
 
 def entity_to_dto(entity: CartProduct) -> CartProductDTO:
-	if entity.cart and isinstance(entity.cart, int):
-		cart_dto = CartDTO(cart_id=entity.cart_id, user_inv_id=None, user_inv=None)
-	else:
-		cart_dto = cart_entity_to_dto(entity.cart) if entity.cart else None
-	if entity.product and isinstance(entity.product, str):
-		p_dto = ProductDTO(
-			product_id=None,
-			name=entity.product,
-			description="",
-			stock=0,
-			price=0,
-			sku=None,
-			is_available=False,
-			category=None,
-			brand=None
-		)
-	else:
-		p_dto = product_entity_to_dto(entity.product) if entity.product else None
+	if isinstance(entity, CartProduct):
+		cart_field = getattr(entity, 'cart', None)
+		if isinstance(cart_field, int):
+			cart_dto = CartDTO(cart_id=entity.cart_id, user_inv_id=None, user_inv=None)
+		else:
+			cart_dto = cart_entity_to_dto(cart_field) if cart_field else None
 
-	return CartProductDTO(
-		cart_id=entity.cart_id,
-		product_id=entity.product_id,
-		quantity=entity.quantity,
-		cart=cart_dto,
-		product=p_dto
-	)
+		product_field = getattr(entity, 'product', None)
+		if isinstance(product_field, str):
+			p_dto = ProductDTO(
+				product_id=None,
+				name=product_field,
+				description="",
+				stock=0,
+				price=0,
+				sku=None,
+				is_available=False,
+				category=None,
+				brand=None
+			)
+		else:
+			p_dto = product_entity_to_dto(product_field) if product_field else None
+
+		return CartProductDTO(
+			cart_product_id=entity.cart_product_id,
+			cart_id=entity.cart_id,
+			product_id=entity.product_id,
+			quantity=entity.quantity,
+			cart=cart_dto,
+			product=p_dto
+		)
 
 def row_to_entity(row: List[Any]) -> CartProduct:
-	cart_id = row[0] if len(row) > 0 else None
-	product_id = row[1] if len(row) > 1 else None
-	quantity = row[2] if len(row) > 2 else None
+	cart_product_id = row[0] if len(row) > 0 else None
+	cart_id = row[1] if len(row) > 1 else None
+	user_inv_id = row[2] if len(row) > 2 else None
+	product_id = row[3] if len(row) > 3 else None
+	product_name = row[4] if len(row) > 4 else ""
+	product_price = row[5] if len(row) > 5 else 0
+	quantity = row[6] if len(row) > 6 else None
 	cart = None
 	product = None
 
-	if len(row) == 3:
-		pass
-	elif len(row) >= 6:
-		cart = None
+	if product_id is not None and product_name:
 		product_dto = ProductDTO(
-			product_id=row[2],
-			name=str(row[3]) if len(row) > 3 and row[3] is not None else "",
+			product_id=product_id,
+			name=str(product_name),
 			description="",
 			stock=0,
-			price=int(row[4]) if len(row) > 4 else 0,
+			price=int(product_price) if product_price else 0,
 			sku=None,
 			is_available=False,
 			category=None,
 			brand=None
 		)
 		product = product_dto_to_entity(product_dto)
-		quantity = row[5]
-		product_id = row[2]
-	else:
-		if len(row) > 3:
-			cart = row[3]
-		if len(row) > 4:
-			raw_product = row[4]
-			if isinstance(raw_product, dict):
-				product_dto = ProductDTO(
-					product_id=raw_product.get('product_id'),
-					name=str(raw_product.get('name')),
-					description=raw_product.get('description', ""),
-					stock=raw_product.get('stock', 0),
-					price=int(raw_product.get('price', 0)),
-					sku=raw_product.get('sku'),
-					is_available=raw_product.get('is_available', False),
-					category=raw_product.get('category'),
-					brand=raw_product.get('brand')
-				)
-				product = product_dto_to_entity(product_dto)
-			else:
-				product = raw_product
 
 	return CartProduct(
+		cart_product_id=cart_product_id,
 		cart_id=cart_id,
 		product_id=product_id,
 		quantity=int(quantity) if quantity else 0,

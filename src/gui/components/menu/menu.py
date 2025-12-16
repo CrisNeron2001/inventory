@@ -32,9 +32,12 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
     if not role_name and current_user and getattr(current_user, 'role_inv_id', None):
         try:
             rs = RoleService()
-            resolved = rs.get_role_by_id(int(current_user.role_inv_id))
-            if resolved:
-                role_name = getattr(resolved, 'name', None)
+            role_id_raw = current_user.role_inv_id
+            role_id = int(role_id_raw) if role_id_raw is not None else None
+            if role_id is not None:
+                resolved = rs.get_role_by_id(role_id)
+                if resolved:
+                    role_name = getattr(resolved, 'name', None)
         except Exception:
             pass
     is_admin = False

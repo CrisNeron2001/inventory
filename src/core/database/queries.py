@@ -71,28 +71,25 @@ create_cart = """
 
 create_cart_product = """
 	CREATE TABLE IF NOT EXISTS cart_product(
-		cart_id INTEGER,
-		product_id INTEGER,
+		cart_product_id SERIAL PRIMARY KEY,
+		cart_id INTEGER NOT NULL,
+		product_id INTEGER NOT NULL,
 		quantity INTEGER NOT NULL,
-		PRIMARY KEY (cart_id, product_id),
 		FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE,
 		FOREIGN KEY (product_id) REFERENCES product(product_id) ON DELETE CASCADE
 	);
 """
 
 create_sale = """
-	CREATE TABLE IF NOT EXISTS sale (
-		sale_id SERIAL PRIMARY KEY,
-		cart_id INTEGER UNIQUE,
-		unit_price INTEGER NOT NULL,
-		total_price INTEGER NOT NULL,
-		sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		notes TEXT NULL,
-		amount_price INTEGER NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE
-	);
+    CREATE TABLE IF NOT EXISTS sale (
+        sale_id SERIAL PRIMARY KEY,
+        cart_id INTEGER NOT NULL,
+        sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE RESTRICT
+    );
 """
 
 #==================(CREACION DE TABLAS PERMISOS)====================>
@@ -251,6 +248,14 @@ update_user_inv = """
 	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, created_at, updated_at;
 """
 
+update_user_role = """
+	UPDATE user_inv
+	SET role_inv_id = %s, updated_at = CURRENT_TIMESTAMP
+	WHERE user_inv_id = %s
+	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, password, created_at, updated_at,
+			  (SELECT r.name FROM role_inv r WHERE r.role_inv_id = user_inv.role_inv_id) AS role_name;
+"""
+
 delete_user_inv = """
 	DELETE FROM user_inv
 	WHERE user_inv_id = %s;
@@ -377,14 +382,18 @@ insert_product= """
 		is_available,
 		created_at,
 		updated_at,
-		(SELECT 
-			c.name 
-		FROM category c 
-		WHERE c.category_id = product.category_id) AS category_name,
-		(SELECT
-			b.name
-		FROM brand b
-		WHERE b.brand_id = product.brand_id) AS brand_name;
+		(
+			SELECT 
+				c.name 
+			FROM category c 
+			WHERE c.category_id = product.category_id
+		) AS category_name,
+		(
+			SELECT
+				b.name
+			FROM brand b
+			WHERE b.brand_id = product.brand_id
+		) AS brand_name;
 """
 
 select_product_by_id= """
@@ -448,14 +457,18 @@ update_product= """
 		is_available,
 		created_at,
 		updated_at,
-		(SELECT 
-			c.name 
-		FROM category c 
-		WHERE c.category_id = product.category_id) AS category_name,
-		(SELECT
-			b.name
-		FROM brand b
-		WHERE b.brand_id = product.brand_id) AS brand_name;
+		(
+			SELECT 
+				c.name 
+			FROM category c 
+			WHERE c.category_id = product.category_id
+		) AS category_name,
+		(
+			SELECT
+				b.name
+			FROM brand b
+			WHERE b.brand_id = product.brand_id
+		) AS brand_name;
 """
 
 delete_product= """
@@ -466,41 +479,46 @@ delete_product= """
 #==================(CRUD VENTA)====================>
 
 insert_sale = """
-	INSERT INTO sale (cart_id, unit_price, total_price, notes, amount_price)
-	VALUES (%s, %s, %s, %s, %s)
-	RETURNING sale_id, cart_id, unit_price, total_price, sale_date, notes, amount_price, created_at, updated_at;
+	INSERT INTO sale (cart_id, notes)
+	VALUES (%s, %s)
+	RETURNING sale_id, cart_id, sale_date, notes, created_at, updated_at;
 """
 
 select_sale_by_id = """
 	SELECT 
 		s.sale_id, 
 		s.cart_id,
-		s.unit_price, 
-		s.total_price, 
 		s.sale_date, 
 		s.notes, 
-		s.amount_price,
 		s.created_at, 
-		s.updated_at
+		s.updated_at,
+		p.name AS product_name,
+		cp.quantity AS quantity,
+		p.price AS unit_price,
+		(cp.quantity * p.price) AS total_price
 	FROM sale s
-	LEFT JOIN cart c ON s.cart_id = c.cart_id
-	WHERE s.sale_id = %s;
+	INNER JOIN cart_product cp ON s.cart_id = cp.cart_id
+	INNER JOIN product p ON cp.product_id = p.product_id
+	WHERE s.sale_id = %s
+	ORDER BY p.product_id;
 """
 
 select_all_sales = """
 	SELECT 
 		s.sale_id, 
 		s.cart_id,
-		s.unit_price, 
-		s.total_price, 
-		s.sale_date,
+		s.sale_date, 
 		s.notes, 
-		s.amount_price,
 		s.created_at, 
-		s.updated_at
+		s.updated_at,
+		p.name AS product_name,
+		cp.quantity AS quantity,
+		p.price AS unit_price,
+		(cp.quantity * p.price) AS total_price
 	FROM sale s
-	LEFT JOIN cart c ON s.cart_id = c.cart_id
-	ORDER BY s.sale_date DESC;
+	INNER JOIN cart_product cp ON s.cart_id = cp.cart_id
+	INNER JOIN product p ON cp.product_id = p.product_id
+	ORDER BY s.sale_date DESC, s.sale_id DESC, p.product_id;
 """
 
 delete_sale = """
@@ -510,14 +528,10 @@ delete_sale = """
 
 update_sale = """
 	UPDATE sale
-	SET cart_id = %s,
-		unit_price = %s,
-		total_price = %s,
-		notes = %s,
-		amount_price = %s,
+	SET notes = %s,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE sale_id = %s
-	RETURNING sale_id, cart_id, unit_price, total_price, sale_date, notes, amount_price, created_at, updated_at;
+	RETURNING sale_id, cart_id, sale_date, notes, created_at, updated_at;
 """
 
 #==================(CRUD CARRITO)====================>
@@ -530,6 +544,7 @@ insert_cart = """
 
 select_all_carts = """
 	SELECT
+		cp.cart_product_id,
 		cp.cart_id,
 		c.user_inv_id,
 		p.product_id,
@@ -544,6 +559,7 @@ select_all_carts = """
 
 select_cart_by_id = """
 	SELECT
+		cp.cart_product_id,
 		cp.cart_id,
 		c.user_inv_id,
 		p.product_id,
@@ -560,9 +576,7 @@ select_cart_by_id = """
 insert_cart_product = """
 	INSERT INTO cart_product(cart_id, product_id, quantity)
 	VALUES (%s, %s, %s)
-	ON CONFLICT (cart_id, product_id) DO UPDATE
-	SET quantity = cart_product.quantity + EXCLUDED.quantity
-	RETURNING cart_id, product_id, quantity;
+	RETURNING cart_product_id, cart_id, product_id, quantity;
 """
 
 remove_product_from_cart = """
@@ -571,7 +585,6 @@ remove_product_from_cart = """
 	RETURNING cart_id, product_id, quantity;
 """
 
-# Decrement product stock only if there's enough stock remaining
 update_product_decrease_if_enough = """
 	UPDATE product
 	SET stock = stock - %s

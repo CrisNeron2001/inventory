@@ -11,7 +11,6 @@ class CartService:
 		self.dao = CartDAO()
 
 	def create_cart(self, cart_dto: CartDTO) -> CartDTO | None:
-		# Validate presence of user_inv_id to avoid DB NOT NULL violations
 		uid = getattr(cart_dto, 'user_inv_id', None)
 		if uid is None:
 			log.error(f"create_cart called without user_inv_id in CartDTO: {cart_dto}")
@@ -28,14 +27,13 @@ class CartService:
 		return cp_entity_to_dto(new_cart) if new_cart else None
 
 	def create_cart_product_with_decrement(self, cart_dto: CartProductDTO) -> CartProductDTO | None:
-		# Diagnostic: log incoming DTO and mapped entity to detect missing ids
 		log.info(f"create_cart_product_with_decrement called with DTO: {cart_dto}")
 		cart = cp_dto_to_entity(cart_dto)
 		log.info(f"Mapped CartProduct entity before DAO call: cart_id={getattr(cart, 'cart_id', None)}, product_id={getattr(cart, 'product_id', None)}, cart_obj={getattr(cart, 'cart', None)}, product_obj={getattr(cart, 'product', None)}, quantity={getattr(cart, 'quantity', None)}")
 		new_cart = self.dao.create_cart_product_with_decrement(cart)
 		log.info(f"Nuevo cart_product creado (with decrement): {new_cart}")
 		return cp_entity_to_dto(new_cart) if new_cart else None
-	
+	  
 	def get_cart_by_id(self, cart_id: int) -> list[CartProductDTO]:
 		carts = self.dao.get_cart_by_id(cart_id) or []
 		log.info(f"Carrito obtenido por id: {cart_id}, items={len(carts)}")

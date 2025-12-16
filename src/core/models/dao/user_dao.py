@@ -6,6 +6,7 @@ from core.database.queries import (
 	select_user_by_username,
 	select_all_users,
 	update_user_inv,
+	update_user_role,
 	delete_user_inv
 )
 from core.models.mapper.user_mapper import row_to_entity
@@ -103,6 +104,24 @@ class UserDAO:
 			return user_updated
 		else:
 			log.error("Error al editar usuario.")
+			return None
+
+	def update_role(self, user_id: int, role_inv_id: int) -> Optional[User]:
+		"""Update only role_inv_id for a user and return the updated User entity (including password).
+		This avoids overwriting the password when only changing role."""
+		if self.cursor and self.db_conn:
+			log.info(f"Actualizando role_inv_id para user_id={user_id} -> role_inv_id={role_inv_id}")
+			self.cursor.execute(update_user_role, (role_inv_id, user_id))
+			self.db_conn.commit()
+			row: Any = self.cursor.fetchone()
+			if not row:
+				log.warning(f"No se actualizó role para user_id={user_id}")
+				return None
+			user_updated = row_to_entity(row=list(row))
+			log.info(f"Role actualizado para usuario: {user_updated}")
+			return user_updated
+		else:
+			log.error("Error al actualizar role de usuario: sin conexión DB.")
 			return None
 
 	def delete_user(self, user_id: int) -> bool:

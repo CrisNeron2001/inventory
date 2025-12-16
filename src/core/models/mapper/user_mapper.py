@@ -9,7 +9,7 @@ from typing import Any, List, cast
 def dto_to_entity(dto: UserDTO) -> User:
 	return User(
 		user_inv_id=dto.user_inv_id,
-		role_inv_id=dto.role_inv_id,
+		role_inv_id=dto.role_inv_id if dto.role_inv_id is not None else 0,
 		first_name=dto.first_name,
 		last_name=dto.last_name,
 		username=dto.username,

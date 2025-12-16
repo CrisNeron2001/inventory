@@ -5,6 +5,7 @@ from typing import Optional
 
 @dataclass
 class CartProduct:
+	cart_product_id: Optional[int | None]
 	cart_id: Optional[int | None]
 	product_id: Optional[int | None]
 	quantity: int

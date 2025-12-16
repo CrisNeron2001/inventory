@@ -64,7 +64,6 @@ class EditSaleFormController:
                 total_price=quantity * unit_price,
                 sale_date=None,
                 notes=notes,
-                cart=None,
             )
             updated = self.sale_service.update_sale(sale_dto)
             if updated:

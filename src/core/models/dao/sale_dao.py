@@ -17,25 +17,43 @@ class SaleDAO:
         self.cursor = self.db_conn.cursor() if self.db_conn else None
 
     def create_sale(self, sale: Sale) -> Optional[Sale]:
-        if self.cursor and self.db_conn:
+        if not (self.cursor and self.db_conn):
+            log.error("Error al crear una venta: sin conexión DB")
+            return None
+
+        try:
             log.info("Creando una nueva venta.")
-            self.cursor.execute(
-                insert_sale,
-                (
-                    (sale.cart.cart_id if sale.cart else None),
-                    sale.unit_price,
-                    sale.total_price,
-                    sale.notes,
-                    sale.amount_price,
-                ),
+            cart_id = sale.cart_id
+
+            params = (
+                cart_id,
+                sale.notes,
             )
-            self.db_conn.commit()
+
+            self.cursor.execute(insert_sale, params)
             row: Any = self.cursor.fetchone()
+            try:
+                self.db_conn.commit()
+            except Exception:
+                try:
+                    self.db_conn.rollback()
+                except Exception:
+                    pass
+
+            if not row:
+                log.error("No se obtuvo fila creada para sale.")
+                return None
+
             sale_created = row_to_entity(row=list(row))
             log.info(f"Venta creada con éxito: {sale_created}")
             return sale_created
-        else:
-            return log.error("Error al crear una venta")
+        except Exception as ex:
+            try:
+                self.db_conn.rollback()
+            except Exception:
+                pass
+            log.error(f"Error creando venta: {ex}")
+            return None
 
     def get_sale_by_id(self, sale_id: int) -> Optional[Sale]:
         if self.cursor and self.db_conn:
@@ -81,16 +99,18 @@ class SaleDAO:
                 self.cursor.execute(
                     update_sale,
                     (
-                         (sale.cart.cart_id if sale.cart else None),
-                        sale.unit_price,
-                        sale.total_price,
                         sale.notes,
-                        sale.amount_price,
                         sale.sale_id,
                     ),
                 )
-                self.db_conn.commit()
                 row = self.cursor.fetchone()
+                try:
+                    self.db_conn.commit()
+                except Exception:
+                    try:
+                        self.db_conn.rollback()
+                    except Exception:
+                        pass
                 if not row:
                     return None
                 updated = row_to_entity(list(row))

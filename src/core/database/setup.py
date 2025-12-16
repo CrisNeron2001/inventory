@@ -57,8 +57,8 @@ class DatabaseSetup:
                 self.cursor.execute(checks_tables)
                 tables_name: list[str] = [
                     "category", "brand", "product",
-                    "role_inv", "user_inv", "sale",
-                    "permission", "role_permission"
+                    "role_inv", "user_inv", "cart", "cart_product",
+                    "sale", "permission", "role_permission"
                 ]
                 existing = {row[0] for row in self.cursor.fetchall()}
                 missing = set(tables_name) - existing

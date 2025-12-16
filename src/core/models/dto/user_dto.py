@@ -7,7 +7,7 @@ from core.models.dto.role_dto import RoleDTO
 @dataclass
 class UserDTO:
     user_inv_id: Optional[int]
-    role_inv_id: int
+    role_inv_id: Optional[int]
     first_name: str
     last_name: Optional[str]
     username: str

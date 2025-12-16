@@ -48,11 +48,23 @@ class UserService:
         return dto
 
     def login(self, username: str, password: str) -> UserDTO | None:
+        log.info(f"Intento de login para username={username}")
         user_entity = self.dao.get_user_by_username(username=username)
         if not user_entity:
             log.info(f"Login fallido: usuario {username} no existe")
             return None
-        if self._verify_password(password, user_entity.password):
+        stored_pw = getattr(user_entity, 'password', None)
+        if not stored_pw:
+            log.error(f"Login fallido: usuario {username} obtenido sin password en DB. user_entity={user_entity}")
+            return None
+
+        try:
+            ok = self._verify_password(password, stored_pw)
+        except Exception as ex:
+            log.error(f"Error verificando contraseña para {username}: {ex}")
+            ok = False
+
+        if ok:
             dto = entity_to_dto(user_entity)
             dto.password = ""
             log.info(f"Login exitoso: {username}")

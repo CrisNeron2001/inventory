@@ -27,114 +27,35 @@ class SaleInfoTable(Info):
 
         def to_dict(item: Any) -> Optional[dict]:
             if isinstance(item, dict):
-                sale_id = item.get("sale_id")
-                cart_id = item.get("cart_id")
-                unit_price = item.get("unit_price", 0)
-                total_price = item.get("total_price", 0)
-                sale_date = item.get("sale_date")
-                notes = item.get("notes", "")
-
-                product_name = item.get("product_name") or (f"Carrito {cart_id}" if cart_id is not None else "N/A")
-                quantity = item.get("quantity", 0)
-
-                if cart_id is not None:
-                    try:
-                        svc = CartService()
-                        if cart_id in carts_cache:
-                            cart_items = carts_cache[cart_id]
-                        else:
-                            cart_items = svc.get_cart_by_id(cart_id) or []
-                            carts_cache[cart_id] = cart_items
-
-                        names: list[str] = []
-                        total_qty = 0
-                        for cp in cart_items:
-                            prod = None
-                            try:
-                                prod = cp.product if not isinstance(cp, dict) else cp.get('product')
-                            except Exception:
-                                prod = None
-                            pname = None
-                            if prod:
-                                try:
-                                    pname = getattr(prod, 'name', None) if not isinstance(prod, dict) else prod.get('name')
-                                except Exception:
-                                    pname = None
-                            if pname:
-                                names.append(str(pname))
-
-                            raw_q = None
-                            try:
-                                raw_q = getattr(cp, 'quantity', None) if not isinstance(cp, dict) else cp.get('quantity', 0)
-                            except Exception:
-                                raw_q = 0
-                            try:
-                                q = int(raw_q or 0)
-                            except Exception:
-                                q = 0
-                            total_qty += q
-
-                        if names:
-                            product_name = ", ".join(names)
-                        quantity = total_qty
-                        if total_qty == 0 and not cart_items:
-                            log.info(f"Carrito {cart_id} no tiene productos asociados (cart_items vacio)")
-                    except Exception as ex:
-                        log.error(f"Error obteniendo productos del carrito {cart_id}: {ex}")
-                        pass
-
                 return {
-                    "sale_id": sale_id,
-                    "cart_id": cart_id,
-                    "product_name": product_name,
-                    "quantity": quantity,
-                    "unit_price": unit_price,
-                    "total_price": total_price,
-                    "sale_date": sale_date,
-                    "notes": notes,
+                    "sale_id": item.get("sale_id"),
+                    "product_name": item.get("product_name", "N/A"),
+                    "quantity": item.get("quantity", 0),
+                    "unit_price": item.get("unit_price", 0),
+                    "total_price": item.get("total_price", 0),
+                    "sale_date": item.get("sale_date"),
+                    "notes": item.get("notes", ""),
                 }
             if is_dataclass(item) and not isinstance(item, type):
                 d = asdict(item)
-                sale_id = d.get("sale_id")
-                cart_id = d.get("cart_id")
-                unit_price = d.get("unit_price", 0)
-                total_price = d.get("total_price", 0)
-                sale_date = d.get("sale_date")
-                notes = d.get("notes", "")
-
-                product_name = d.get("product_name") or (f"Carrito {cart_id}" if cart_id is not None else "N/A")
-                quantity = d.get("quantity", 0)
-
                 return {
-                    "sale_id": sale_id,
-                    "cart_id": cart_id,
-                    "product_name": product_name,
-                    "quantity": quantity,
-                    "unit_price": unit_price,
-                    "total_price": total_price,
-                    "sale_date": sale_date,
-                    "notes": notes,
+                    "sale_id": d.get("sale_id"),
+                    "product_name": d.get("product_name", "N/A"),
+                    "quantity": d.get("quantity", 0),
+                    "unit_price": d.get("unit_price", 0),
+                    "total_price": d.get("total_price", 0),
+                    "sale_date": d.get("sale_date"),
+                    "notes": d.get("notes", ""),
                 }
             if hasattr(item, "sale_id"):
-                sale_id = getattr(item, "sale_id", None)
-                cart_id = getattr(item, "cart_id", None)
-                unit_price = getattr(item, "unit_price", 0)
-                total_price = getattr(item, "total_price", 0)
-                sale_date = getattr(item, "sale_date", None)
-                notes = getattr(item, "notes", "")
-
-                product_name = getattr(item, "product_name", None) or (f"Carrito {cart_id}" if cart_id is not None else "N/A")
-                quantity = getattr(item, "quantity", 0)
-
                 return {
-                    "sale_id": sale_id,
-                    "cart_id": cart_id,
-                    "product_name": product_name,
-                    "quantity": quantity,
-                    "unit_price": unit_price,
-                    "total_price": total_price,
-                    "sale_date": sale_date,
-                    "notes": notes,
+                    "sale_id": getattr(item, "sale_id", None),
+                    "product_name": getattr(item, "product_name", "N/A"),
+                    "quantity": getattr(item, "quantity", 0),
+                    "unit_price": getattr(item, "unit_price", 0),
+                    "total_price": getattr(item, "total_price", 0),
+                    "sale_date": getattr(item, "sale_date", None),
+                    "notes": getattr(item, "notes", ""),
                 }
             return None
 

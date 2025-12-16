@@ -24,6 +24,8 @@ from core.models.dto.role_dto import RoleDTO
 from core.models.dto.user_dto import UserDTO
 from core.database.connections import DatabaseConnection
 from core.database.queries import insert_permission, insert_role_permission
+from core.models.dao.user_dao import UserDAO
+from core.models.dto.sale_dto import SaleDTO
 
 
 def load_seed_data(path: str) -> Dict:
@@ -92,7 +94,12 @@ def seed_products(prod_svc: ProductService, cat_map: Dict[str, CategoryDTO], br_
 
 
 def ensure_roles(svc: RoleService, items: list[Dict]) -> Dict[str, RoleDTO]:
-	existing = {r.name.lower(): r for r in svc.get_all_roles()}
+	existing = {}
+	for r in svc.get_all_roles():
+		name = getattr(r, "name", "")
+		if isinstance(name, str):
+			existing[name.strip().lower()] = r
+
 	result: Dict[str, RoleDTO] = {}
 	for it in items:
 		name = it["name"].strip()
@@ -103,33 +110,60 @@ def ensure_roles(svc: RoleService, items: list[Dict]) -> Dict[str, RoleDTO]:
 		created = svc.create_role(RoleDTO(role_inv_id=None, name=name))
 		if created:
 			result[key] = created
-	final = {r.name.lower(): r for r in svc.get_all_roles()}
+	final = {}
+	for r in svc.get_all_roles():
+		name = getattr(r, "name", "")
+		if isinstance(name, str):
+			final[name.strip().lower()] = r
 	return final
 
 
 def seed_users(user_svc: UserService, role_map: Dict[str, RoleDTO], items: list[Dict]) -> None:
-	existing = {u.username: u for u in user_svc.get_all_users()}
+	existing = {}
+	for u in user_svc.get_all_users():
+		un = getattr(u, "username", "")
+		if isinstance(un, str):
+			existing[un.strip().lower()] = u
+
 	for it in items:
-		username = it.get("username")
+		username_raw = it.get("username")
+		username = str(username_raw).strip() if username_raw is not None else ""
 		if not username:
 			continue
-		if username in existing:
+		if username.lower() in existing:
 			continue
 
 		role_name = (it.get("role_name") or "").strip().lower()
 		role_dto = role_map.get(role_name)
 
+		role_inv_id = None
+		if role_dto is not None:
+			raw_role_id = getattr(role_dto, 'role_inv_id', None)
+			if raw_role_id is None:
+				raw_role_id = getattr(role_dto, 'role_id', None)
+			if raw_role_id is not None:
+				try:
+					role_inv_id = int(raw_role_id)
+				except (TypeError, ValueError):
+					role_inv_id = None
+
 		user_dto = UserDTO(
 			user_inv_id=None,
-			role_inv_id=(int(role_dto.role_inv_id) if role_dto and role_dto.role_inv_id is not None else 0),
-			first_name=it.get("first_name", ""),
-			last_name=it.get("last_name", ""),
+			role_inv_id=role_inv_id,
+			first_name=str(it.get("first_name") or ""),
+			last_name=str(it.get("last_name") or ""),
 			username=username,
-			password=it.get("password", ""),
-			role_inv=None,
+			password=str(it.get("password") or ""),
+			role_inv=role_dto, 
 		)
 
 		user_svc.create_user(user_dto)
+
+
+def _str_is_int_like(s: str) -> bool:
+	if not isinstance(s, str):
+		return False
+	return s.lstrip('-').isdigit()
 
 
 def main() -> None:
@@ -149,51 +183,40 @@ def main() -> None:
 	role_map = ensure_roles(role_svc, data.get("roles", []))
 	seed_users(user_svc, role_map, data.get("users", []))
 
-	# Intentar asignar rol administrador a usuario del archivo de sesión (si aplica)
-	try:
-		roles = role_svc.get_all_roles()
-		admin_role = next((r for r in roles if getattr(r, 'name', '').strip().lower() in ('administrador', 'admin', 'administrator')), None)
-		if admin_role:
-			admin_id = getattr(admin_role, 'role_inv_id', None)
-			print(f'Rol Administrador id: {admin_id}')
+	roles = role_svc.get_all_roles()
+	admin_role = next((r for r in roles if getattr(r, 'name', '').strip().lower() in ('administrador', 'admin', 'administrator')), None)
+	if admin_role:
+		admin_id = getattr(admin_role, 'role_inv_id', None)
+		print(f'Rol Administrador id: {admin_id}')
 
-			us = user_svc
-			session_file = os.path.join(os.getcwd(), '.session.json')
-			user_id = 1
-			if os.path.exists(session_file):
-				try:
-					with open(session_file, 'r', encoding='utf-8') as f:
-						j = json.load(f)
-						user_id = int(j.get('user_inv_id', user_id))
-				except Exception:
-					pass
-			print(f'Actualizar usuario id: {user_id} -> role_id={admin_id}')
-			user = us.get_user_by_id(user_id)
-		if user:
+		dao = UserDAO()
+		session_file = os.path.join(os.getcwd(), '.session.json')
+		user_id = 1
+		if os.path.exists(session_file):
 			try:
-				if admin_id is not None:
-					try:
-						user.role_inv_id = int(admin_id)
-					except Exception:
-						user.role_inv_id = admin_id
-				updated = us.update_user(user)
-				print('Usuario actualizado:', updated)
-			except Exception as ex:
-				print('Error actualizando usuario:', ex)
-				try:
-					log.error(f'assign_role_to_user error: {ex}')
-				except Exception:
-					pass
-			else:
-				print('Usuario no encontrado')
-		else:
-			print('No se encontró rol Administrador')
-	except Exception as e:
-		print('Error assign_role_to_user:', e)
+				with open(session_file, 'r', encoding='utf-8') as f:
+					j = json.load(f)
+			except json.JSONDecodeError:
+				j = {}
+			user_id_raw = j.get('user_inv_id', user_id)
+			if isinstance(user_id_raw, int):
+				user_id = user_id_raw
+			elif isinstance(user_id_raw, str) and _str_is_int_like(user_id_raw):
+				user_id = int(user_id_raw)
+
+		print(f'Actualizar usuario id: {user_id} -> role_id={admin_id}')
 		try:
-			log.error(f'assign_role_to_user error: {e}')
-		except Exception:
-			pass
+			if admin_id is not None:
+				role_val = int(admin_id) if isinstance(admin_id, (int, str)) and (isinstance(admin_id, int) or _str_is_int_like(str(admin_id))) else None
+				if role_val is not None:
+					updated = dao.update_role(user_id=user_id, role_inv_id=role_val)
+					print('Usuario actualizado:', updated)
+				else:
+					print('Admin id inválido, no se actualizó')
+		except Exception as ex:
+			print('Error actualizando role via DAO:', ex)
+	else:
+		print('No se encontró rol Administrador')
 
 	conn = DatabaseConnection.get_connection_db()
 	if conn:
@@ -201,30 +224,17 @@ def main() -> None:
 		for p in data.get("permissions", []):
 			key = p.get("permission_key")
 			desc = p.get("description")
-			try:
-				cursor.execute(insert_permission, (key, desc))
-			except Exception:
-				pass
+			cursor.execute(insert_permission, (key, desc))
 		role_permissions = data.get("role_permissions", {})
 		for role_name, perms in role_permissions.items():
 			role = role_map.get(role_name.lower())
 			if not role or not getattr(role, 'role_inv_id', None):
 				continue
 			for pk in perms:
-				try:
 					rid = getattr(role, 'role_inv_id', None)
 					if rid is not None:
-						try:
-							cursor.execute(insert_role_permission, (int(rid), pk))
-						except Exception:
-							pass
-				except Exception:
-					pass
-		try:
+						cursor.execute(insert_role_permission, (int(rid), pk))
 			conn.commit()
-		except Exception:
-			pass
-
 
 	sale_svc = SaleService()
 	session = SessionService()
@@ -235,22 +245,20 @@ def main() -> None:
 	if cajero and carts:
 		session.set_current_user(cajero)
 		for i, c in enumerate(carts[:3], start=1):
-			cart_id = getattr(c, "cart_id", getattr(c, "cart_inv_id", None))
+			cart_id = getattr(c, "cart_id", getattr(c, "cart_id", None))
+			product_id = getattr(c, "product_id", getattr(c, "product_id", None))
 			unit_price = getattr(c, "price", getattr(c, "unit_price", 0))
 			dto = {
 				"sale_id": None,
 				"cart_id": cart_id,
+				"product_id": product_id,
 				"quantity": i,
 				"unit_price": unit_price,
 				"total_price": i * unit_price,
 				"notes": "Seed sale",
 			}
-			from core.models.dto.sale_dto import SaleDTO
 			sd = SaleDTO(**dto)
-			try:
-				sale_svc.create_sale(sd)
-			except Exception:
-				pass
+			sale_svc.create_sale(sd)
 		session.clear()
 
 	print("Seeding completado.")

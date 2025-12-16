@@ -9,8 +9,6 @@ def find_targets(root: str, remove_pyc_files: bool):
 		pycache_dirs = []
 		pyc_files = []
 		for dirpath, dirnames, filenames in os.walk(root):
-				# Normalize names for comparison
-				# Collect __pycache__ directories (direct children names)
 				for d in list(dirnames):
 						if d == "__pycache__":
 								pycache_dirs.append(os.path.join(dirpath, d))
