@@ -54,3 +54,16 @@ class FormProductValidator:
             validator.validate_basic_data(data)
             validator.validate_availability_data(data)
         return True, []
+    
+    @staticmethod
+    def validate_edit_product_stock_form_data(data: dict) -> tuple[bool, list[str]]:
+        errors = []
+        if not data.get('is_available'):
+            errors.append("Debe indicar el estado")
+        try:
+            stock = int(data.get('stock', '0'))
+            if stock <= 0:
+                errors.append("La cantidad debe ser mayor o igual a 0")
+        except ValueError:
+            errors.append("La cantidad debe ser un número válido")
+        return True, []

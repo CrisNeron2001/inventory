@@ -3,9 +3,10 @@ from core.database.connections import DatabaseConnection
 from core.database.queries import (
     insert_product,
     select_product_by_id,
-	select_all_products,
-	update_product,
-	delete_product
+    select_all_products,
+    update_product,
+    update_product_stock_by_name,
+    delete_product
 )
 from core.models.mapper.product_mapper import row_to_entity
 from core.models.entity.product_entity import Product
@@ -20,8 +21,8 @@ class ProductDAO:
         if self.cursor and self.db_conn:
             log.info("Creando un nuevo producto.")
             self.cursor.execute(
-				insert_product,
-				(
+                insert_product,
+                (
                     product.name,
                     product.description,
                     product.stock,
@@ -30,7 +31,7 @@ class ProductDAO:
                     (product.brand.brand_id if product.brand else None),
                     product.sku,
                     product.is_available
-				))
+                ))
             self.db_conn.commit()
             row: Any = self.cursor.fetchone()
             product_created = row_to_entity(row=list(row))
@@ -85,6 +86,19 @@ class ProductDAO:
             return product_updated
         else:
             return log.error("Error al editar el producto")
+            
+    def edit_product_stock_by_name(self, name: str) -> Optional[Product]:
+        if self.cursor and self.db_conn:
+            log.info("Editando disponibilidad")
+            self.cursor.execute(update_product_stock_by_name, (name))
+            self.db_conn.commit()
+            row: Any = self.cursor.fetchone()
+            product_stock_updated = row_to_entity(row=list(row))
+            log.info(f"Disponibilidad de producto editado: {product_stock_updated}")
+            return product_stock_updated
+        else:
+            return log.error("Error al editar la disponibilidad del producto")
+				
     
     def delete_product(self, product_id: int) -> bool:
         if self.cursor and self.db_conn:

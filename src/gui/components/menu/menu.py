@@ -45,7 +45,6 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
         is_admin = True
     admin_perms = [
         "product.create",
-        "product.update_quantity",
         "user.create",
         "user.view",
         "category.view",
@@ -63,7 +62,6 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
         can_view_brands = True
     else:
         can_view_products = session.has_permission("product.view")
-        can_manage_products = session.has_permission("product.update_quantity") or session.has_permission("product.create")
         can_view_categories = session.has_permission("category.view")
         can_view_brands = session.has_permission("brand.view")
 
@@ -103,7 +101,7 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
                     leading=ft.Icon(ft.Icons.SHOPPING_BAG),
                     controls=(
                         ([create_menu_item(ft.Icons.ADD, "Crear producto", "/products/create")] if (is_admin or session.has_permission("product.create")) else [])
-                        + ([create_menu_item(ft.Icons.EDIT, "Actualizar stock", "/products/edit_stock")] if session.has_permission("product.edit_stock") or is_admin else [])
+                        + ([create_menu_item(ft.Icons.EDIT, "Actualizar stock", "/products/edit_stock")])
                     ),
                     initially_expanded=False
                 )] if (is_admin or session.has_permission("product.view") or session.has_permission("product.create")) else []),

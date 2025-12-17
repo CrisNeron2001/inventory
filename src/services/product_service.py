@@ -82,8 +82,12 @@ class ProductService:
         log.info(f"Producto modificado: {updated_product}")
         return entity_to_dto(updated_product) if updated_product else None
 
+    def edit_product_stock_by_name(self, name: str) -> ProductDTO | None:
+        product_stock = self.dao.edit_product_stock_by_name(name)
+        log.info(f"Editar disponibilidad del producto: {product_stock}")
+        return entity_to_dto(product_stock) if product_stock else None
+
     def decrease_stock(self, product_id: int, qty: int) -> bool:
-        """Decrease stock for product by qty. Returns True if update succeeded."""
         try:
             pid = int(product_id) if product_id is not None else None
         except Exception:

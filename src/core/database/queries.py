@@ -471,6 +471,15 @@ update_product= """
 		) AS brand_name;
 """
 
+update_product_stock_by_name= """
+	UPDATE TABLE product
+	SET
+		stock = %s,
+		is_available = %s,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE name = %s;
+"""
+
 delete_product= """
 	DELETE FROM product
 	WHERE product_id = %s;
