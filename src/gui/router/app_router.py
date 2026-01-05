@@ -17,6 +17,7 @@ from gui.views.auth.register_view import register_view
 #edit
 from gui.views.product.edit_product_view import edit_product_view
 from gui.views.product.edit_product_stock_view import edit_product_stock_view
+from gui.views.product.product_import_view import product_import_view
 from gui.views.category.edit_category_view import edit_category_view
 from gui.views.brand.edit_brand_view import edit_brand_view
 
@@ -58,6 +59,7 @@ class AppRouter:
             "/": {"title": "Inventario", "view": self._home_view},
             "/products/create": {"title": "Crear producto", "view": self._create_product_view},
             "/products/edit_stock": {"title": "Editar Disponibilidad producto", "view": self._edit_product_stock_view},
+            "/products/import": {"title": "Importar productos", "view": self._product_import_view},
             "/categories": {"title": "Categorías", "view": self._categories_list_view},
             "/categories/create": {"title": "Crear categoría", "view": self._create_category_view},
             "/brands": {"title": "Marcas", "view": self._brands_list_view},
@@ -417,3 +419,6 @@ class AppRouter:
 
     def _register_view(self) -> ft.Container:
         return register_view(self.navigate_to)
+    
+    def _product_import_view(self) -> ft.Container:
+        return product_import_view(self.page)

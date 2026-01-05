@@ -32,11 +32,23 @@ class AvailabilityStep(Form):
 		]
     
     def get_data(self) -> dict:
+        category_obj = None
+        brand_obj = None
+        if self.field_category is not None and self.field_category.value:
+            for opt in getattr(self.field_category, 'options', []):
+                if str(opt.key) == str(self.field_category.value):
+                    category_obj = {'category_id': opt.key, 'name': opt.text}
+                    break
+        if self.field_brand is not None and self.field_brand.value:
+            for opt in getattr(self.field_brand, 'options', []):
+                if str(opt.key) == str(self.field_brand.value):
+                    brand_obj = {'brand_id': opt.key, 'name': opt.text}
+                    break
         return {
-			'is_available': self.field_is_available.value if self.field_is_available is not None else '',
-			'category': self.field_category.value if self.field_category is not None else '',
-			'brand': self.field_brand.value if self.field_brand is not None else ''
-		}
+            'is_available': self.field_is_available.value if self.field_is_available is not None else '',
+            'category': category_obj,
+            'brand': brand_obj
+        }
         
     def validate(self) -> tuple[bool, list[str]]:
         data = self.get_data()

@@ -102,6 +102,7 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
                     controls=(
                         ([create_menu_item(ft.Icons.ADD, "Crear producto", "/products/create")] if (is_admin or session.has_permission("product.create")) else [])
                         + ([create_menu_item(ft.Icons.EDIT, "Actualizar stock", "/products/edit_stock")])
+                        + ([create_menu_item(ft.Icons.FILE_UPLOAD, "Cargar datos", "/products/import")])
                     ),
                     initially_expanded=False
                 )] if (is_admin or session.has_permission("product.view") or session.has_permission("product.create")) else []),
@@ -145,7 +146,6 @@ def define_menu_bar(on_route_change: Callable[[str], None], on_toggle: Optional[
                     ),
                     initially_expanded=False
                 ),
-                # Debug session menu removed
                 ft.Divider(),
                 ft.ListTile(
                     leading=ft.Icon(ft.Icons.EXIT_TO_APP),
