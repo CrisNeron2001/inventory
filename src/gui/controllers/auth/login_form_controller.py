@@ -1,50 +1,33 @@
 from gui.components.form.login_form import LoginForm
 from services.user_service import UserService
 from config.settings import log
-from typing import Optional, Callable, cast
 import flet as ft
 from services.session_service import SessionService
-
+from gui.components.dialog.validate.success.success_dialog import success_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class LoginFormController:
-    def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page):
         self.user_service = UserService()
         self.login_form = LoginForm(self.on_submit)
-        self.router_callback = router_callback
+        self.page = page
 
     def on_submit(self, form_data: dict):
-        navigate = form_data.get("_navigate")
-        if navigate:
-            if self.router_callback and isinstance(navigate, str):
-                self.router_callback(navigate)
-            return
-
         username = form_data.get("username")
         password = form_data.get("password")
         if not isinstance(username, str) or not isinstance(password, str):
-            log.info("Credenciales inválidas recibidas (tipos incorrectos).")
-            return None
+            log.info("[LoginFormController.on_submit] Credenciales inválidas recibidas (tipos incorrectos).")
+            self.show_validate_error_dialog(["Credenciales inválidas."])
+            return
 
         user = self.user_service.login(username, password)
         if user:
-            log.info(f"Usuario {username} autenticado correctamente.")
-            try:
-                SessionService().set_current_user(user)
-            except Exception:
-                log.error("No se pudieron cargar permisos en la sesión.")
-            if self.router_callback:
-                self.router_callback("/")
-            return user
+            SessionService().set_current_user(user)
+            log.info(f"[LoginFormController.on_submit] Login correcto para {username}.")
+            self.show_success_dialog("Inicio de sesión exitoso")
         else:
-            log.info(f"Fallo de autenticación para {username}")
-            # Añadir feedback visual mínimo en la UI si está disponible
-            try:
-                from flet import SnackBar, Text
-                sb = SnackBar(Text('Credenciales inválidas'), bgcolor='#d32f2f')
-                # si el form está integrado en una page, esto no asegura mostrarlo, pero añade intención
-            except Exception:
-                pass
-            return None
+            log.info(f"[LoginFormController.on_submit] Login fallido para {username}.")
+            self.show_error_dialog(["Usuario o contraseña incorrectos"])
 
     def create_form_layout(self) -> ft.Container:
         form_controls = self.login_form.create_controls({})
@@ -57,3 +40,14 @@ class LoginFormController:
             )
         ], alignment=ft.MainAxisAlignment.CENTER)
         return ft.Container(content=main_content, expand=True)
+
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/login"))
+        
+    def show_validate_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg) 
+        
+    def show_success_dialog(self, msg: str):
+        success_dialog(self.page, msg, on_close=lambda: self.page.go("/"))

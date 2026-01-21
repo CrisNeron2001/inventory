@@ -10,15 +10,17 @@ from core.models.dto.sale_dto import SaleDTO
 from core.exceptions.exception import AuthorizationFailure
 from config.settings import log
 from utils.helpers import autoincrement_id
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class POSCartManager:
-	def __init__(self, controller):
+	def __init__(self, controller, page: ft.Page):
 		self.controller = controller
 		self.cart_service: CartService = controller.cart_service
 		self.sale_service: SaleService = controller.sale_service
 		self.product_service: ProductService = controller.product_service
 		self.session: SessionService = controller.session
 		self.cart: List[dict] = controller.cart
+		self.page = page
 
 	def add_to_cart(self, product_id: int, qty: int) -> CartProductDTO | None:
 		if qty <= 0:
@@ -34,49 +36,33 @@ class POSCartManager:
 
 		if self.controller.current_cart_id is None:
 			if not user_id:
-				page = getattr(self.controller, 'page', None)
-				if page is not None:
-					page.snack_bar = ft.SnackBar(ft.Text("Debe iniciar sesión para crear un carrito."), open=True)
-					page.update()
-				log.error("Intento de crear carrito sin usuario autenticado (user_id is None). Aborting create_cart.")
+				self.show_validate_error_dialog(["Debe iniciar sesión para crear un carrito."])
+				log.error("[POSCartManager.add_to_cart] Intento de crear carrito sin usuario autenticado.")
 				return None
 
 			cart_dto = CartDTO(cart_id=None, user_inv_id=user_id, user_inv=None)
 			created_cart = self.cart_service.create_cart(cart_dto)
 			if not created_cart:
-				page = getattr(self.controller, 'page', None)
-				if page is not None:
-					page.snack_bar = ft.SnackBar(ft.Text("No se pudo crear el carrito. Intenta iniciar sesión o intenta de nuevo."), open=True)
-					page.update()
-				log.error("create_cart devolvió None; abortando add_to_cart")
+				self.show_error_dialog(["No se pudo crear el carrito. Intenta iniciar sesión o intenta de nuevo."])
+				log.error("[POSCartManager.add_to_cart] No se pudo agregar carrito.")
 				return None
 
 			self.controller.current_cart_id = getattr(created_cart, 'cart_id', None)
-			log.info(f"Carrito creado y asignado current_cart_id={self.controller.current_cart_id}")
+			log.info(f"[POSCartManager.add_to_cart] Carrito creado y asignado current_cart_id={self.controller.current_cart_id}")
 
 		else:
 			current_stock = getattr(prod, 'stock', None)
 			if current_stock is None:
 				current_stock = getattr(prod, 'quantity', None)
 			current_stock = int(current_stock or 0)
-			log.info(f"Validando stock para product_id={product_id}: requested={qty}, available={current_stock}")
+			log.info(f"[POSCartManager.add_to_cart] Validando stock para product_id={product_id}: requested={qty}, available={current_stock}")
 			if qty > current_stock:
-				page = getattr(self.controller, 'page', None)
-				if page is not None:
-					page.snack_bar = ft.SnackBar(ft.Text(f"Stock insuficiente. Disponible: {current_stock}"), open=True)
-					page.update()
+				self.show_validate_error_dialog([f"Stock insuficiente. Disponible: {current_stock}"])
 				return None
 
 		if getattr(self, 'controller', None) and getattr(self.controller, 'current_cart_id', None) is None:
-			log.error("No current_cart_id available when attempting to create cart_product; aborting")
-			page = getattr(self.controller, 'page', None)
-			if page is not None:
-				page.snack_bar = ft.SnackBar(ft.Text("Error interno: carrito no disponible."), open=True)
-				page.update()
-			return None
-
-		if product_id is None:
-			log.error("product_id is None when attempting to add to cart; aborting")
+			log.error("[POSCartManager.add_to_cart] No existe carrito disponible, abortando.")
+			self.show_error_dialog(["Error interno: carrito no disponible."])
 			return None
 
 		cp_dto = CartProductDTO(
@@ -87,12 +73,12 @@ class POSCartManager:
 			cart=None, 
 			product=None
 		)
-		log.info(f"POSCartManager.add_to_cart preparing to call create_cart_product_with_decrement with cp_dto: {cp_dto}")
+		log.info(f"[POSCartManager.add_to_cart] generando un carrito con decremento desde dto: {cp_dto}")
 		created_cp = self.cart_service.create_cart_product_with_decrement(cp_dto)
 		if created_cp:
-			log.info(f"create_cart_product devolvió: {created_cp}")
+			log.info(f"[POSCartManager.add_to_cart] generado carrito con producto devolvió: {created_cp}")
 		else:
-			log.warning(f"create_cart_product devolvió None para cart_id={self.controller.current_cart_id}, product_id={product_id}, quantity={qty}")
+			log.warning(f"[POSCartManager.add_to_cart] no ha generado carrito para cart_id={self.controller.current_cart_id}, product_id={product_id}, quantity={qty}")
 
 		display_price = None
 		display_name = None
@@ -161,7 +147,7 @@ class POSCartManager:
 
 		if self.controller.current_cart_id is not None:
 			pids = [getattr(self.cart[i]['product'], 'product_id', None) for i in selected if i < len(self.cart)]
-			log.info(f"POSCartManager.remove_product_by_cart: selected_indices={selected}, cart_id={self.controller.current_cart_id}, product_ids={pids}")
+			log.info(f"[POSCartManager.remove_product_by_cart] indices seleccionados={selected}, cart_id={self.controller.current_cart_id}, product_ids={pids}")
 			cp_dto = CartProductDTO(
 				cart_product_id=autoincrement_id(),
 				cart_id=self.controller.current_cart_id, 
@@ -179,3 +165,11 @@ class POSCartManager:
 
 		self.controller.selected_indices.clear()
 		self.controller.update_content()
+
+	def show_error_dialog(self, errors: list[str]):
+		error_msg = "\n".join(errors)
+		error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/sales"))
+
+	def show_validate_error_dialog(self, errors: list[str]):
+		error_msg = "\n".join(errors)
+		error_dialog(self.page, error_msg) 

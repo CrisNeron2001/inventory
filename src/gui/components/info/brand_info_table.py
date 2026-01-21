@@ -1,14 +1,15 @@
 from core.abstracts.info import Info
-from typing import Sequence, Optional, Callable, Any, cast
+from typing import Sequence, Optional, Any
 from dataclasses import is_dataclass, asdict
 import flet as ft
 from gui.components.dialog.brand.delete_brand_dialog import delete_brand_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class BrandInfoTable(Info):
-    def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page):
         super().__init__("Marcas", "brand_info_table")
         self.brand_data: Sequence[dict] = []
-        self.router_callback = router_callback
+        self.page = page
         self.current_page: int = 1
         self.page_size: int = 5
         self._table_container: Optional[ft.Container] = None
@@ -151,23 +152,23 @@ class BrandInfoTable(Info):
         )
         
     def on_edit(self, brand_id: int):
-        if self.router_callback:
-            self.router_callback(f"/brands/edit/{brand_id}")
+        if self.page:
+            self.page.go(f"/brands/edit/{brand_id}")
 
     def on_delete(self, e: ft.ControlEvent, brand_id: int):
         try:
             delete_brand_dialog(
                 e.page,
                 int(brand_id),
-                on_deleted=lambda: self.router_callback("/brands") if self.router_callback else None
+                on_deleted=lambda: self.page.go("/brands") if self.page else None
 			)
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
             
     def on_add_brand(self, e):
-        if self.router_callback:
-            self.router_callback("/brands/create")
+        if self.page:
+            self.page.go("/brands/create")
 
     def get_data(self) -> dict:
         return {'brands': self.brand_data, 'total': self._filtered_total()}
@@ -265,9 +266,10 @@ class BrandInfoTable(Info):
             self._refresh_table()
 
     def _on_page_size_change(self, e: ft.ControlEvent):
-        try:
-            self.page_size = int(e.control.value)
-            self.current_page = 1
-            self._refresh_table()
-        except Exception:
-            pass
+        self.page_size = int(e.control.value)
+        self.current_page = 1
+        self._refresh_table()
+		
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))

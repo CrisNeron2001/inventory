@@ -12,26 +12,26 @@ class RoleService:
     def create_role(self, role_dto: RoleDTO) -> RoleDTO | None:
         role = dto_to_entity(role_dto)
         new_role = self.dao.create_role(role=role)
-        log.info(f"Nuevo role creado: {new_role}")
+        log.info(f"[RoleService.create_role] Creando un nuevo rol: {new_role}")
         return entity_to_dto(new_role) if new_role else None
 
     def get_role_by_id(self, role_id: int) -> RoleDTO | None:
         role = self.dao.get_role_by_id(role_id=role_id)
-        log.info(f"Role obtenido por id: {role}")
+        log.info(f"[RoleService.get_role_by_id] Obteniendo un rol por id: {role}")
         return entity_to_dto(role) if role else None
 
     def get_all_roles(self) -> List[RoleDTO]:
         roles = self.dao.get_all_roles()
-        log.info(f"Obtenidos todos los roles: {roles}")
+        log.info(f"[RoleService.get_all_roles] Obteniendo todos los roles: {roles}")
         return [entity_to_dto(role) for role in roles]
 
     def update_role(self, role_dto: RoleDTO) -> RoleDTO | None:
         role = dto_to_entity(role_dto)
         updated_role = self.dao.edit_role(role=role)
-        log.info(f"Role actualizado: {updated_role}")
+        log.info(f"[RoleService.update_role] Modificando un rol: {updated_role}")
         return entity_to_dto(updated_role) if updated_role else None
 
     def delete_role(self, role_id: int) -> bool | None:
         deleted = self.dao.delete_role(role_id=role_id)
-        log.info(f"Role eliminado: {deleted}")
+        log.info(f"[RoleService.delete_role] Removiendo un rol: {deleted}")
         return True if deleted else False

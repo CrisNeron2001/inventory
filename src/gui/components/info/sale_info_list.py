@@ -1,6 +1,7 @@
 from core.abstracts.info import Info
 from typing import Any, Sequence
 import flet as ft
+from dataclasses import is_dataclass, asdict
 import datetime
 
 class SaleInfoList(Info):
@@ -9,19 +10,25 @@ class SaleInfoList(Info):
 		self.sales_data: Sequence[dict] = []
 		
 	def create_controls(self, info_data: Any) -> list[ft.Control]:
-		if isinstance(info_data, dict):
+		if is_dataclass(info_data) and not isinstance(info_data, type):
+			self.sales_data = [asdict(info_data)]
+		elif isinstance(info_data, dict):
 			self.sales_data = [info_data]
 		elif isinstance(info_data, Sequence):
-			self.sales_data = [p for p in info_data if isinstance(p, dict)]
+			self.sales_data = []
+			for p in info_data:
+				if is_dataclass(p) and not isinstance(p, type):
+					self.sales_data.append(asdict(p))
+				elif isinstance(p, dict):
+					self.sales_data.append(p)
 		else:
 			self.sales_data = []
-			
-		info_sales = []
+
+		info_sales: list[ft.Control] = []
 		for sale in self.sales_data:
-			data = sale
-			info_sale = self.create_sale_info_list(data)
+			info_sale = self.create_sale_info_list(sale)
 			info_sales.append(info_sale)
-			
+
 		return info_sales
 	
 	def create_sale_info_list(self, data: dict) -> ft.Control:
@@ -49,7 +56,7 @@ class SaleInfoList(Info):
 		
 		return ft.Container(
 			content=ft.Column([
-				ft.ListTile(title=ft.Text(value=f"Producto: {data.get('product_name', 'N/A')}")),
+				ft.ListTile(title=ft.Text(value=f"Producto: {data.get('product_name', 'None')}")),
 				ft.ListTile(title=ft.Text(value=f"Cantidad: {str(data.get('quantity', '0'))}")),
 				ft.ListTile(title=ft.Text(value=f"Precio unit.: {unit_price_formatted}")),
 				ft.ListTile(title=ft.Text(value=f"Precio total: {total_price_formatted}")),

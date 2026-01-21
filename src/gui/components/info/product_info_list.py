@@ -1,5 +1,6 @@
 from core.abstracts.info import Info
 from typing import Any, Sequence
+from dataclasses import is_dataclass, asdict
 import flet as ft
 
 class ProductInfoList(Info):
@@ -8,25 +9,38 @@ class ProductInfoList(Info):
 		self.products_data: Sequence[dict] = []
 		
 	def create_controls(self, info_data: Any) -> list[ft.Control]:
-		if isinstance(info_data, dict):
+		if is_dataclass(info_data) and not isinstance(info_data, type):
+			self.products_data = [asdict(info_data)]
+		elif isinstance(info_data, dict):
 			self.products_data = [info_data]
 		elif isinstance(info_data, Sequence):
-			self.products_data = [p for p in info_data if isinstance(p, dict)]
+			self.products_data = []
+			for p in info_data:
+				if is_dataclass(p) and not isinstance(p, type):
+					self.products_data.append(asdict(p))
+				elif isinstance(p, dict):
+					self.products_data.append(p)
 		else:
 			self.products_data = []
-			
-		info_products = []
+
+		info_products: list[ft.Control] = []
 		for product in self.products_data:
-			data = product
-			info_product = self.create_product_info_list(data)
+			info_product = self.create_product_info_list(product)
 			info_products.append(info_product)
-			
+
 		return info_products
 	
 	def create_product_info_list(self, data: dict) -> ft.Control:
 		availability_text = "Disponible" if data.get("is_available", True) else "No disponible"
 		price_formatted = f"${data.get('price', 0)}"
-		
+
+		category = data.get("category")
+		if isinstance(category, dict):
+			category = category.get("name")
+		brand = data.get("brand")
+		if isinstance(brand, dict):
+			brand = brand.get("name")
+
 		return ft.Container(
 			content=ft.Column([
 				ft.ListTile(title=ft.Text(value=f"Producto: {data.get('name', 'N/A')}")),
@@ -35,8 +49,8 @@ class ProductInfoList(Info):
 				ft.ListTile(title=ft.Text(value=f"Precio: {price_formatted}")),
 				ft.ListTile(title=ft.Text(value=f"Código: {data.get('sku', 'N/A')}")),
 				ft.ListTile(title=ft.Text(value=f"Estado disponibilidad: {availability_text}")),
-				ft.ListTile(title=ft.Text(value=f"Categoria: {data.get('category', 'N/A')}")),
-				ft.ListTile(title=ft.Text(value=f"Marca: {data.get('brand', 'N/A')}"))
+				ft.ListTile(title=ft.Text(value=f"Categoria: {category or 'N/A'}")),
+				ft.ListTile(title=ft.Text(value=f"Marca: {brand or 'N/A'}")),
 			])
 		)
 

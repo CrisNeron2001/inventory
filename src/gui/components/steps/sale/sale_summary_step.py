@@ -1,7 +1,6 @@
 from core.abstracts.form import Form
 from typing import Optional, Callable
 import flet as ft
-from config.settings import log
 
 class SaleSummaryStep(Form):
     def __init__(self, router_callback: Optional[Callable[[str], None]] = None):

@@ -44,6 +44,9 @@ from gui.components.dialog.brand.delete_brand_dialog import delete_brand_dialog
 from gui.components.dialog.sale.delete_sale_dialog import delete_sale_dialog
 from gui.components.dialog.user.delete_user_dialog import delete_user_dialog
 
+#validations dialogs
+from gui.components.dialog.validate.error.error_dialog import error_dialog
+
 
 class AppRouter:
     def __init__(self, page: ft.Page):
@@ -226,11 +229,11 @@ class AppRouter:
             delete_product_dialog(self.page, int(pid), on_deleted=lambda: self.page.go("/products"))
             
         def handle_view(pid: str) -> None:
-            content = product_detail_view(int(pid))
+            content = product_detail_view(self.page, int(pid))
             self._push_view(route, f"Detalle producto #{pid}", content)
             
         def handle_edit(pid: str) -> None:
-            content = edit_product_view(int(pid), on_saved=lambda: self.page.go("/products"))
+            content = edit_product_view(int(pid), self.page)
             self._push_view(route, f"Editar producto #{pid}", content)
             
         handlers = {
@@ -245,7 +248,7 @@ class AppRouter:
                 try:
                     handler(pid)
                 except Exception as ex:
-                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                    self.show_validate_error_dialog([str(ex)])
                 return True
         return False
 
@@ -257,7 +260,7 @@ class AppRouter:
             delete_category_dialog(self.page, int(cid), on_deleted=lambda: self.page.go("/categories"))
 
         def handle_edit(cid: str) -> None:
-            content = edit_category_view(int(cid))
+            content = edit_category_view(int(cid), self.page)
             self._push_view(route, f"Editar categoría #{cid}", content)
 
         handlers = {
@@ -271,7 +274,7 @@ class AppRouter:
                 try:
                     handler(cid)
                 except Exception as ex:
-                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                    self.show_validate_error_dialog([str(ex)])
                 return True
         return False
 
@@ -283,7 +286,7 @@ class AppRouter:
             delete_brand_dialog(self.page, int(bid), on_deleted=lambda: self.page.go("/brands"))
 
         def handle_edit(bid: str) -> None:
-            content = edit_brand_view(int(bid), on_saved=lambda: self.page.go("/brands"))
+            content = edit_brand_view(int(bid), self.page)
             self._push_view(route, f"Editar marca #{bid}", content)
 
         handlers = {
@@ -297,7 +300,7 @@ class AppRouter:
                 try:
                     handler(bid)
                 except Exception as ex:
-                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                    self.show_validate_error_dialog([str(ex)])
                 return True
         return False
 
@@ -305,11 +308,11 @@ class AppRouter:
         handlers: Dict[str, Callable[[str], None]] = {}
 
         def handle_view(sid: str) -> None:
-            content = sale_detail_view(int(sid))
+            content = sale_detail_view(int(sid), self.page)
             self._push_view(route, f"Detalle venta #{sid}", content)
 
         def handle_edit(sid: str) -> None:
-            content = edit_sale_view(int(sid), on_saved=lambda: self.page.go("/sales"))
+            content = edit_sale_view(int(sid), self.page)
             self._push_view(route, f"Editar venta #{sid}", content)
 
         def handle_delete(sid: str) -> None:
@@ -328,7 +331,7 @@ class AppRouter:
                 try:
                     handler(sid)
                 except Exception as ex:
-                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                    self.show_validate_error_dialog([str(ex)])
                 return True
         return False
 
@@ -340,7 +343,7 @@ class AppRouter:
             delete_user_dialog(self.page, int(uid), on_deleted=lambda: self.page.go("/users"))
 
         def handle_edit(uid: str) -> None:
-            content = edit_user_view(int(uid), on_saved=lambda: self.page.go("/users"))
+            content = edit_user_view(int(uid), self.page)
             self._push_view(route, f"Editar usuario #{uid}", content)
 
         handlers = {
@@ -354,15 +357,15 @@ class AppRouter:
                 try:
                     handler(uid)
                 except Exception as ex:
-                    cast(Any, self.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
+                    self.show_validate_error_dialog([str(ex)])
                 return True
         return False
 
     def _home_view(self) -> ft.Container:
         session = SessionService()
         if session.get_current_user() is None:
-            return login_view(self.navigate_to)
-        return product_registrations_view(self.navigate_to)
+            return login_view(self.page)
+        return product_registrations_view(self.page)
 
     def _quick_card(self, title: str, icon: str, route: str) -> ft.Container:
         return ft.Container(
@@ -381,44 +384,48 @@ class AppRouter:
         )
 
     def _products_list_view(self) -> ft.Container:
-        return product_registrations_view(self.navigate_to)
+        return product_registrations_view(self.page)
 
     def _users_list_view(self) -> ft.Container:
-        return user_registrations_view(self.navigate_to)
+        return user_registrations_view(self.page)
 
     def _create_user_view(self) -> ft.Container:
-        return add_user_view(self.navigate_to)
+        return add_user_view(self.page)
 
     def _create_product_view(self) -> ft.Container:
-        return add_product_view()
+        return add_product_view(self.page)
         
     def _edit_product_stock_view(self) -> ft.Container:
-        return edit_product_stock_view()
+        return edit_product_stock_view(self.page)
             
     def _categories_list_view(self) -> ft.Container:
-        return category_registrations_view(self.navigate_to)
+        return category_registrations_view(self.page)
 
     def _create_category_view(self) -> ft.Container:
-        return add_category_view()
+        return add_category_view(self.page)
 
     def _brands_list_view(self) -> ft.Container:
-        return brand_registrations_view(self.navigate_to)
+        return brand_registrations_view(self.page)
 
     def _create_brand_view(self) -> ft.Container:
-        return add_brand_view()
+        return add_brand_view(self.page)
 
     def _pos_view(self) -> ft.Container:
-        return pos_view(self.navigate_to)
+        return pos_view(self.page)
     
 
     def _sales_list_view(self) -> ft.Container:
-        return sale_registrations_view(self.navigate_to)
+        return sale_registrations_view(self.page)
 
     def _login_view(self) -> ft.Container:
-        return login_view(self.navigate_to)
+        return login_view(self.page)
 
     def _register_view(self) -> ft.Container:
-        return register_view(self.navigate_to)
+        return register_view(self.page)
     
     def _product_import_view(self) -> ft.Container:
         return product_import_view(self.page)
+        
+    def show_validate_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg) 

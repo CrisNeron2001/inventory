@@ -9,35 +9,27 @@ class ProductImportController:
     def __init__(self, page: ft.Page):
         self.page = page
         self.import_step = ProductImportStep(page=self.page)
-        self.p_summary_step = ProductSummaryStep([], None, parent=self)
-        self.c_summary_step = CategorySummaryStep([], None)
-        self.b_summary_step = BrandSummaryStep([], None)
+        self.p_summary_step = ProductSummaryStep([], "", parent=self)
+        self.c_summary_step = CategorySummaryStep([], "")
+        self.b_summary_step = BrandSummaryStep([], "", self.page)
         self.steps = [self.import_step, self.p_summary_step, self.c_summary_step, self.b_summary_step]
         self.navigator = StepNavigator(self.steps, self.on_step_change)
         self.import_step.on_import_finished = self.advance_stepper
         self.progress_bar = ft.ProgressBar(value=0, color=ft.Colors.BLUE_600)
         self.step_indicators = ft.Column(spacing=20, expand=False)
         self.content_container = ft.Column(expand=True)
-        # Propagar referencia al padre a los steps de resumen
         self.p_summary_step.parent = self
         self.c_summary_step.parent = self
         self.b_summary_step.parent = self
 
     def advance_stepper(self):
-        # Avanzar al siguiente paso usando el mismo StepNavigator
         self.navigator.next_step()
-        # Refrescar indicadores, contenido y barra de progreso
         self.update_step_indicators()
         self.update_content()
         self.update_progress()
         self.page.update()
 
     def on_step_change(self, step_index):
-        print(f"[DEBUG] on_step_change llamado con step_index={step_index}")
-        print(f"[DEBUG] selected_file: {getattr(self.import_step, 'selected_file', None)}")
-        print(f"[DEBUG] products: {getattr(self.import_step, 'products', None)}")
-        print(f"[DEBUG] import_error: {getattr(self.import_step, 'import_error', None)}")
-
         if step_index in (1, 2, 3):
             if self.import_step.selected_file and (self.import_step.products is None or self.import_step.products == []):
                 self.import_step.step = 1
@@ -112,7 +104,6 @@ class ProductImportController:
         controls = current_step.create_controls({'parent': self})
         self.content_container.controls.extend(controls)
 
-        # Reconstruir los botones de navegación en cada actualización
         btn_prev = ft.ElevatedButton(
             "Anterior",
             icon=ft.Icons.ARROW_BACK,
@@ -122,7 +113,7 @@ class ProductImportController:
         btn_next = ft.ElevatedButton(
             "Siguiente" if not self.navigator.is_last_step() else "Finalizar",
             icon=ft.Icons.ARROW_FORWARD if not self.navigator.is_last_step() else ft.Icons.CHECK,
-            on_click=lambda e: self.navigator.next_step() if not self.navigator.is_last_step() else self.navigator.reset(),
+			on_click=lambda e: self.navigator.next_step() if not self.navigator.is_last_step() else self.page.go("/"),
             disabled=(not self.navigator.is_last_step() and not (self.import_step.selected_file or self.import_step.products or self.import_step.import_error)),
         )
         nav_buttons = ft.Row([btn_prev, btn_next], alignment=ft.MainAxisAlignment.CENTER)

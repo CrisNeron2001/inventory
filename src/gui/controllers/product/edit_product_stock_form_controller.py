@@ -2,10 +2,10 @@ import flet as ft
 from services.product_service import ProductService
 
 class EditProductStockTableController:
-    def __init__(self, on_saved=None):
+    def __init__(self, page: ft.Page):
         self.product_service = ProductService()
-        self.on_saved = on_saved
-        self.page = 1
+        self.page = page
+        self.n_page = 1
         self.page_size = 5
         self.search_text = ""
         self.products = []
@@ -17,13 +17,13 @@ class EditProductStockTableController:
         if self.search_text:
             all_products = [p for p in all_products if self.search_text.lower() in p.name.lower()]
         self.total_pages = max(1, (len(all_products) + self.page_size - 1) // self.page_size)
-        start = (self.page - 1) * self.page_size
+        start = (self.n_page - 1) * self.page_size
         end = start + self.page_size
         self.products = all_products[start:end]
 
     def on_search(self, value):
         self.search_text = value
-        self.page = 1
+        self.n_page = 1
         self.load_products()
         self.refresh()
 
@@ -40,14 +40,14 @@ class EditProductStockTableController:
         self.refresh()
 
     def on_prev(self, e):
-        if self.page > 1:
-            self.page -= 1
+        if self.n_page > 1:
+            self.n_page -= 1
             self.load_products()
             self.refresh()
 
     def on_next(self, e):
-        if self.page < self.total_pages:
-            self.page += 1
+        if self.n_page < self.total_pages:
+            self.n_page += 1
             self.load_products()
             self.refresh()
 
@@ -104,14 +104,14 @@ class EditProductStockTableController:
             ft.IconButton(
                 icon=ft.Icons.ARROW_BACK,
                 on_click=self.on_prev,
-                disabled=self.page <= 1,
+                disabled=self.n_page <= 1,
                 tooltip="Página anterior"
             ),
-            ft.Text(f"Página {self.page} de {self.total_pages}"),
+            ft.Text(f"Página {self.n_page} de {self.total_pages}"),
             ft.IconButton(
                 icon=ft.Icons.ARROW_FORWARD,
                 on_click=self.on_next,
-                disabled=self.page >= self.total_pages,
+                disabled=self.n_page >= self.total_pages,
                 tooltip="Página siguiente"
             ),
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)

@@ -2,7 +2,6 @@ from core.abstracts.form import Form
 from typing import Optional
 import flet as ft
 
-
 class CashPaymentStep(Form):
     def __init__(self):
         super().__init__("Pago en efectivo", "cash_payment")

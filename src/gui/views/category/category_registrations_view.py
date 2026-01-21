@@ -1,12 +1,6 @@
 import flet as ft
-from typing import Callable, Optional
-from services.category_service import CategoryService
-from gui.components.info.category_info_table import CategoryInfoTable
+from gui.controllers.category.category_registrations_controller import CategoryRegistrationsController
 
-
-def category_registrations_view(router_callback: Optional[Callable[[str], None]] = None) -> ft.Container:
-    svc = CategoryService()
-    categories = svc.get_all_categories()
-    table = CategoryInfoTable(router_callback)
-    controls = table.create_controls(categories)
-    return ft.Container(content=ft.Column(controls), expand=True)
+def category_registrations_view(page:ft.Page) -> ft.Container:
+	controller = CategoryRegistrationsController(page)
+	return controller.create_table_layout()

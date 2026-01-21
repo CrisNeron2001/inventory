@@ -11,17 +11,20 @@ class ProductService:
     def create_product(self, product_dto: ProductDTO) -> ProductDTO | None:
         product = dto_to_entity(product_dto)
         new_product = self.dao.create_product(product)
-        log.info(f"Nuevo producto creado: {new_product}")
-        return entity_to_dto(new_product) if new_product else None
+        if new_product is None:
+            log.error("[ProductService.create_product] No se pudo crear el producto (posible SKU duplicado u otro error).")
+            return None
+        log.info(f"[ProductService.create_product] Creando un nuevo producto: {new_product}")
+        return entity_to_dto(new_product)
     
     def get_product_by_id(self, product_id: int) -> ProductDTO | None:
         product = self.dao.get_product_by_id(product_id=product_id)
-        log.info(f"Producto obtenido por id: {product}")
+        log.info(f"[ProductService.get_product_by_id] Obteniendo producto por id: {product}")
         return entity_to_dto(product) if product else None
     
     def get_all_products(self) -> List[ProductDTO]:
         products = self.dao.get_all_products()
-        log.info(f"Obtenido todos los productos: {products}")
+        log.info(f"[ProductService.get_all_products] Obteniendo todos los productos: {products}")
         return [entity_to_dto(product) for product in products]
     
     def update_product(self, product_dto: ProductDTO) -> ProductDTO | None:
@@ -29,12 +32,12 @@ class ProductService:
         pid_raw = getattr(product_dto, 'product_id', None)
         pid = int(pid_raw) if pid_raw is not None else None
         if pid is None:
-            log.error(f"product_id missing in ProductDTO: {product_dto}")
+            log.error(f"[ProductService.update_product] Falta id de producto: {product_dto}")
             return None
 
         current = self.dao.get_product_by_id(pid)
         if current is None:
-            log.error(f"Producto no encontrado: {product_dto.product_id}")
+            log.error(f"[ProductService.update_product] Producto no encontrado: {product_dto.product_id}")
             return None
 
         try:
@@ -74,17 +77,17 @@ class ProductService:
                     break
 
         if not allowed:
-            log.error(f"Usuario sin permisos para modificar producto {product_dto.product_id}")
+            log.error(f"[ProductService.update_product] Usuario sin permisos para modificar producto {product_dto.product_id}")
             return None
 
         product = dto_to_entity(product_dto)
         updated_product = self.dao.edit_product(product=product)
-        log.info(f"Producto modificado: {updated_product}")
+        log.info(f"[ProductService.update_product] Modificando producto: {updated_product}")
         return entity_to_dto(updated_product) if updated_product else None
 
     def edit_product_stock_by_name(self, name: str) -> ProductDTO | None:
         product_stock = self.dao.edit_product_stock_by_name(name)
-        log.info(f"Editar disponibilidad del producto: {product_stock}")
+        log.info(f"[ProductService.edit_product_stock_by_name] Modificando disponibilidad del producto: {product_stock}")
         return entity_to_dto(product_stock) if product_stock else None
 
     def decrease_stock(self, product_id: int, qty: int) -> bool:
@@ -94,12 +97,12 @@ class ProductService:
             return False
 
         if pid is None:
-            log.error(f"decrease_stock called with invalid product_id={product_id}")
+            log.error(f"[ProductService.decrease_stock] Producto no encontrado o inválido={product_id}")
             return False
 
         product = self.get_product_by_id(pid)
         if not product:
-            log.error(f"Producto no encontrado para disminuir stock: product_id={pid}")
+            log.error(f"[ProductService.decrease_stock] Producto no encontrado para disminuir stock: product_id={pid}")
             return False
 
         try:
@@ -113,7 +116,7 @@ class ProductService:
             decrease = 0
 
         if decrease <= 0:
-            log.info(f"decrease_stock: cantidad a disminuir inválida: {decrease}")
+            log.info(f"[ProductService.decrease_stock] Cantidad a disminuir inválida: {decrease}")
             return False
 
         new_stock = current_stock - decrease
@@ -124,19 +127,19 @@ class ProductService:
             setattr(product, 'stock', new_stock)
             updated = self.update_product(product)
             if updated:
-                log.info(f"Stock actualizado para product_id={pid}: {current_stock} -> {new_stock}")
+                log.info(f"[ProductService.decrease_stock] Creando stock para el producto={pid}: {current_stock} -> {new_stock}")
                 return True
             else:
-                log.error(f"No se pudo actualizar el stock para product_id={pid}")
+                log.error(f"[ProductService.decrease_stock] No se pudo actualizar el stock para product_id={pid}")
                 return False
         except Exception as e:
-            log.error(f"Error disminuyendo stock para product_id={pid}: {e}")
+            log.error(f"[ProductService.decrease_stock] Error disminuyendo stock para product_id={pid}: {e}")
             return False
     
     def delete_product(self, product_id: int) -> bool | None:
         if not SessionService().has_permission('product.delete'):
-            log.error(f"Usuario sin permiso para eliminar producto {product_id}")
+            log.error(f"[ProductService.delete_product] Usuario sin permiso para eliminar producto {product_id}")
             return False
         product = self.dao.delete_product(product_id=product_id)
-        log.info(f"Producto eliminado: {product}")
+        log.info(f"[ProductService.delete_product] Removiendo producto: {product}")
         return True if product else False 

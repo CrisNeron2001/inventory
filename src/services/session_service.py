@@ -27,13 +27,13 @@ class SessionService:
 		try:
 			self._session_file = os.path.join(os.getcwd(), ".session.json")
 		except (OSError, PermissionError) as ex:
-			log.error(f"Could not determine current working directory, falling back to local filename: {ex}")
+			log.error(f"[SessionService.__init__] No se pudo determinar el directorio de trabajo actual, volviendo al nombre de archivo local: {ex}")
 			self._session_file = ".session.json"
 
 		try:
 			self._load_persistent_session()
 		except (FileNotFoundError, json.JSONDecodeError, ValueError, OSError, TypeError) as ex:
-			log.info(f"No persistent session loaded: {ex}")
+			log.info(f"[SessionService.__init__] No se cargó ninguna sesión persistente: {ex}")
 
 	def set_current_user(self, user: Optional[UserDTO]) -> None:
 		self.current_user = user
@@ -57,10 +57,10 @@ class SessionService:
 				perms = self._perm_service.get_permissions_for_role(role_id)
 				if perms:
 					self._permissions = set(perms)
-				log.info(f"Loaded permissions for role {role_id}: {self._permissions}")
+				log.info(f"Cargando permiso por el rol {role_id}: {self._permissions}")
 			except (AttributeError, ValueError, TypeError) as ex:
 				rid = getattr(getattr(user, "role_inv", None), "role_inv_id", getattr(user, "role_inv_id", None))
-				log.error(f"Error loading permissions for role {rid}: {ex}")
+				log.error(f"[SessionService.set_current_user] Error al cargar permisos para el rol {rid}: {ex}")
 		try:
 			if user:
 				self._persist_session(user_id=user.user_inv_id, days=14)
@@ -68,7 +68,7 @@ class SessionService:
 				if os.path.exists(self._session_file):
 					os.remove(self._session_file)
 		except (OSError, TypeError, ValueError) as ex:
-			log.error(f"Error persisting session: {ex}")
+			log.error(f"[SessionService.set_current_user] Error en la sesión persistente: {ex}")
 
 	def clear(self) -> None:
 		self.current_user = None
@@ -77,14 +77,14 @@ class SessionService:
 			if hasattr(self, "_session_file") and os.path.exists(self._session_file):
 				os.remove(self._session_file)
 		except OSError as ex:
-			log.error(f"Error removing session file: {ex}")
+			log.error(f"[SessionService.clear] Error al eliminar el archivo de sesión: {ex}")
 
 	def logout(self) -> None:
 		try:
 			self.clear()
-			log.info("User logged out and persistent session cleared.")
+			log.info("[SessionService.logout] El usuario cerró sesión y se borró la sesión persistente.")
 		except OSError as ex:
-			log.error(f"Error during logout: {ex}")
+			log.error(f"[SessionService.logout] Error al cerrar sesión: {ex}")
 
 	def get_current_user(self) -> Optional[UserDTO]:
 		return self.current_user
@@ -105,7 +105,7 @@ class SessionService:
 			with open(self._session_file, "w", encoding="utf-8") as f:
 				json.dump(data, f)
 		except (OSError, TypeError, ValueError) as ex:
-			log.error(f"Failed to write session file: {ex}")
+			log.error(f"[SessionService._persist_session] No se pudo escribir el archivo de sesión: {ex}")
 
 	def _load_persistent_session(self) -> None:
 		if not hasattr(self, "_session_file"):
@@ -123,7 +123,7 @@ class SessionService:
 				try:
 					os.remove(self._session_file)
 				except OSError as ex_rm:
-					log.error(f"Failed to remove expired session file: {ex_rm}")
+					log.error(f"[SessionService._load_persistent_session] No se pudo eliminar el archivo de sesión caducado: {ex_rm}")
 				return
 			user_id = data.get("user_inv_id")
 			if user_id is None:
@@ -151,9 +151,9 @@ class SessionService:
 					perms = self._perm_service.get_permissions_for_role(role_id)
 					if perms:
 						self._permissions = set(perms)
-					log.info(f"Loaded permissions for restored session role {role_id}: {self._permissions}")
+					log.info(f"[SessionService._load_persistent_session] Cargando permisos para la función de sesión restaurada {role_id}: {self._permissions}")
 				except (AttributeError, ValueError, TypeError) as ex:
-					log.error(f"Error loading permissions for restored session: {ex}")
-				log.info(f"Restored persistent session for user {user_id}")
+					log.error(f"[SessionService._load_persistent_session] Error al cargar permisos para la sesión restaurada: {ex}")
+				log.info(f"[SessionService._load_persistent_session] Restaurando sesión persistente para el usuario {user_id}")
 		except (OSError, json.JSONDecodeError, ValueError, TypeError, AttributeError) as ex:
-			log.error(f"Failed to load session file: {ex}")
+			log.error(f"[SessionService._load_persistent_session] No se pudo cargar el archivo de sesión: {ex}")

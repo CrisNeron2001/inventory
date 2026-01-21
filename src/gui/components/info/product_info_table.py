@@ -1,16 +1,17 @@
 from core.abstracts.info import Info
-from typing import Sequence, Optional, Callable, Any, cast
+from typing import Sequence, Optional, Any, cast
 from dataclasses import is_dataclass, asdict
 import flet as ft
 from gui.components.dialog.product.delete_product_dialog import delete_product_dialog
 from services.session_service import SessionService
 from gui.views.product.product_detail_view import product_detail_view
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class ProductInfoTable(Info):
-    def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page):
         super().__init__("Productos", "product_info_table")
         self.products_data: Sequence[dict] = []
-        self.router_callback = router_callback
+        self.page = page
         self.current_page: int = 1
         self.page_size: int = 5
         self._table_container: Optional[ft.Container] = None
@@ -246,40 +247,39 @@ class ProductInfoTable(Info):
         )
 
     def on_edit(self, product_id: int):
-        if self.router_callback:
-            self.router_callback(f"/products/edit/{product_id}")
+        if self.page:
+            self.page.go(f"/products/edit/{product_id}")
 
     def on_delete(self, e: ft.ControlEvent, product_id: int):
         try:
             delete_product_dialog(
 				e.page,
 				int(product_id),
-				on_deleted=lambda: self.router_callback("/products") if self.router_callback else None
+				on_deleted=lambda: self.page.go("/products") if self.page else None
 			)
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
 
     def on_view(self, e: ft.ControlEvent, product_id: int):
         try:
-            if self.router_callback:
-                self.router_callback(f"/products/view/{product_id}")
+            if self.page:
+                self.page.go(f"/products/view/{product_id}")
                 return
 
-            content = product_detail_view(product_id)
-            if hasattr(e, "page") and getattr(e, "page") is not None:
-                e.page.views.append(ft.View(route=f"/products/view/{product_id}", controls=[
-                    ft.AppBar(title=ft.Text(f"Detalle producto #{product_id}")),
-                    content,
-                ]))
-                e.page.go(f"/products/view/{product_id}")
+            content = product_detail_view(self.page, product_id)
+            cast(Any, self.page).views.append(ft.View(route=f"/products/view/{product_id}", controls=[
+                ft.AppBar(title=ft.Text(f"Detalle producto #{product_id}")),
+                content,
+            ]))
+            self.page.go(f"/products/view/{product_id}")
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
 
     def on_add_product(self, e):
-        if self.router_callback:
-            self.router_callback("/products/create")
+        if self.page:
+            self.page.go("/products/create")
 
     def get_data(self) -> dict:
         return {'products': self.products_data, 'total': self._filtered_total()}
@@ -388,9 +388,10 @@ class ProductInfoTable(Info):
             self._refresh_table()
 
     def _on_page_size_change(self, e: ft.ControlEvent):
-        try:
-            self.page_size = int(e.control.value)
-            self.current_page = 1
-            self._refresh_table()
-        except Exception:
-            pass
+        self.page_size = int(e.control.value)
+        self.current_page = 1
+        self._refresh_table()
+		
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))

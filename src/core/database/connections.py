@@ -24,7 +24,7 @@ class DatabaseConnection:
     @classmethod
     def create_connection_db(cls):
         try:
-            log.info("Attempting the connection to database")
+            log.info("[DatabaseConnection.create_connection_db] Conectando base de datos.")
             db_conn = connect(
                 host=os.environ.get('PG_HOST'),
                 port=os.environ.get('PG_PORT'),
@@ -33,23 +33,23 @@ class DatabaseConnection:
                 database=os.environ.get('PG_DATABASE')
 			)
             cls.db_conn = db_conn
-            log.info(f"Connection to database successful: \n{db_conn}")
+            log.info(f"[DatabaseConnection.create_connection_db] Conección exitosa: \n{db_conn}.")
             return db_conn
         except OperationalError as e:
             error_msg = str(e).lower()
             if 'authentication' in error_msg:
-                log.error("Authentication failed: incorrect password or user: %s", e)
+                log.error("[DatabaseConnection.create_connection_db] Credenciales de la base de datos incorrectas: %s", e)
                 raise DatabaseFailure("non-retryable") from e
             else:
-                log.error("Operational error occurred: %s", e)
+                log.error("[DatabaseConnection.create_connection_db] Error operacional: %s", e)
                 raise ConnectionFailure("non-retryable") from e
         except Exception as e:
-            log.critical("An error unknown occurred: %s", e)
+            log.critical(" [DatabaseConnection.create_connection_db] Un error desconocido: %s", e)
             raise PermanentFailure("non-retryable") from e
         
     @classmethod
     def close_connection_db(cls):
         if cls.db_conn and not cls.db_conn.close():
             cls.db_conn.close()
-            log.info("Database connection closed")
+            log.info("[DatabaseConnection.close_connection_db] Conección cerrada.")
             cls.db_conn = None

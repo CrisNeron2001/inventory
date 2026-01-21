@@ -2,7 +2,7 @@ import flet as ft
 from typing import Optional, Dict, Any, List, Tuple
 
 class CategorySummaryStep:
-	def __init__(self, categories, error=None):
+	def __init__(self, categories, error: str):
 		self.title = "Resumen de categoría"
 		self.categories = categories
 		self.error = error
@@ -56,13 +56,8 @@ class CategorySummaryStep:
 		page_items = items[start:end]
 		rows = []
 		for item in page_items:
-			if hasattr(item, "__dict__"):
-				data = item.__dict__
-				value = data.get("name", str(item))
-			elif isinstance(item, dict):
-				value = item.get("name", str(item))
-			else:
-				value = str(item)
+			# items ya es una lista de nombres (str)
+			value = str(item)
 			row_cells = [ft.DataCell(ft.Text(value, size=12))]
 			rows.append(ft.DataRow(cells=row_cells))
 		return ft.Container(

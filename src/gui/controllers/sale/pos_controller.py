@@ -1,11 +1,10 @@
 import flet as ft
-from typing import List, Dict, Optional, Callable, Any
+from typing import List, Optional, Callable
 from services.cart_service import CartService
 from core.models.dto.cart_product_dto import CartProductDTO
 from services.sale_service import SaleService
 from services.product_service import ProductService
 from services.session_service import SessionService
-from core.exceptions.exception import AuthorizationFailure
 from config.settings import log
 from gui.components.steps.step_navigation import StepNavigator
 from gui.components.steps.sale.product_selection_step import ProductSelectionStep
@@ -14,11 +13,13 @@ from gui.components.steps.sale.cash_payment_step import CashPaymentStep
 from utils.pos_cart_manager import POSCartManager
 from utils.pos_ui import POSUI
 from utils.pos_navigation import POSNavigationHelper
+from gui.components.dialog.validate.success.success_dialog import success_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class POSController:
 	def __init__(
 		self,
-		page: Optional[ft.Page] = None,
+		page: ft.Page,
 		router_callback: Optional[Callable] = None,
 	):
 		self.page = page
@@ -41,7 +42,7 @@ class POSController:
 		self.cart = []
 		self.current_cart_id: Optional[int] = None
 		self.selected_indices: set = set()
-		self.cart_manager = POSCartManager(self)
+		self.cart_manager = POSCartManager(self, self.page)
 		self.ui = POSUI(self)
 		self.nav = POSNavigationHelper(self)
 
@@ -49,7 +50,7 @@ class POSController:
 		self.ui.update_step_indicators()
 		self.ui.update_content()
 		self.ui.update_progress()
-		self.nav._update_nav_buttons()
+		self.nav.update_nav_buttons()
 
 	def load_products(self):
 		self.products = self.product_service.get_all_products()
@@ -78,7 +79,7 @@ class POSController:
 	def create_form_layout(self) -> ft.Container:
 		return self.ui.create_form_layout()
 
-	def _create_form_layout_internal(self) -> ft.Container:
+	def create_form_layout_internal(self) -> ft.Container:
 		self.load_products()
 
 		product_options = [
@@ -96,7 +97,7 @@ class POSController:
 			for idx, it in enumerate(self.cart):
 				cart_list.controls.append(
 					ft.Row([
-						ft.Text(f"{it['product'].name} x{it['qty']}", expand=True),
+						ft.Text(f"{it['product'].name} x {it['qty']}", expand=True),
 						ft.Text(f"${it['line_total']}"),
 						ft.IconButton(icon=ft.Icons.DELETE, on_click=lambda e, i=idx: on_remove(i)),
 					])
@@ -108,19 +109,18 @@ class POSController:
 		def on_add(e: ft.ControlEvent):
 			try:
 				if ddl.value is None:
-					raise ValueError("Debe seleccionar un producto")
+					self.show_validate_error_dialog(["Debe seleccionar un producto"])
+					raise ValueError("[POSController.on_add] Debe seleccionar un producto")
 				if qty.value is None or str(qty.value).strip() == "":
-					raise ValueError("Cantidad inválida")
+					self.show_validate_error_dialog(["Cantidad inválida"])
+					raise ValueError("[POSController.on_add] Cantidad inválida")
 
 				pid = int(str(ddl.value))
 				q = int(str(qty.value))
 				self.add_to_cart(pid, q)
 				refresh_cart()
 			except (ValueError, TypeError) as ve:
-				if hasattr(e, 'page') and e.page:
-					page = e.page
-					page.snack_bar = ft.SnackBar(ft.Text(str(ve)))
-					page.update()
+				self.show_error_dialog([str(ve)])
 
 		def on_remove(index: int):
 			try:
@@ -130,6 +130,7 @@ class POSController:
 					cid = getattr(car, 'cart_id', None)
 					prod = self.cart[index].get('product')
 					pid = getattr(prod, 'product_id', None)
+					prod_name = getattr(prod, "name", "")
 					if pid is not None:
 						try:
 							cp_dto = CartProductDTO(
@@ -142,7 +143,8 @@ class POSController:
 							)
 							self.cart_service.remove_products_by_cart(cp_dto)
 						except Exception as ex:
-							log.error(f"Error al remover producto persistido product_id={pid} cart_id={cid}: {ex}")
+							log.error(f"[POSController.on_remove] Error al remover producto persistido {prod_name}: {ex}")
+							self.show_validate_error_dialog([f"Error al remover producto persistido {prod_name}"])
 
 				if cid is not None:
 					try:
@@ -172,31 +174,13 @@ class POSController:
 			refresh_cart()
 
 		def on_confirm(e: ft.ControlEvent):
-			try:
-				created = self.confirm_sale()
-				if created:
-					if hasattr(e, 'page') and e.page:
-						page = e.page
-						page.snack_bar = ft.SnackBar(ft.Text(f"Venta registrada: {len(created) if created is not None else 0} items"))
-						page.update()
-					refresh_cart()
-				else:
-					if hasattr(e, 'page') and e.page:
-						page = e.page
-						page.snack_bar = ft.SnackBar(ft.Text("No se registró ninguna venta."))
-						page.update()
-			except AuthorizationFailure as af:
-				if hasattr(e, 'page') and e.page:
-					page = e.page
-					page.snack_bar = ft.SnackBar(ft.Text(str(af)))
-					page.update()
-			except Exception as ex:
-				if hasattr(e, 'page') and e.page:
-					page = e.page
-					page.snack_bar = ft.SnackBar(ft.Text(f"Error en venta: {ex}"))
-					page.update()
-			if hasattr(e, 'page') and e.page:
-				e.page.update()
+			created = self.confirm_sale()
+			if created:
+				log.info("[POSController.on_confirm] Pago realizado.")
+				self.show_success_dialog("Pago realizado.")
+			else:
+				log.error("[POSController.on_confirm] No se hizo el pago correctamente.")
+				self.show_validate_error_dialog(["No se hizo el pago correctamente"])
 
 		add_btn = ft.ElevatedButton("Agregar", on_click=on_add)
 		confirm_btn = ft.ElevatedButton("Confirmar venta", on_click=on_confirm, bgcolor=ft.Colors.GREEN_600)
@@ -217,7 +201,7 @@ class POSController:
 	def update_step_indicators(self):
 		return self.ui.update_step_indicators()
 
-	def _update_step_indicators_internal(self):
+	def update_step_indicators_internal(self):
 		self.step_indicators.controls.clear()
 		for i, step in enumerate(self.steps):
 			is_current = i == self.navigator.current_step
@@ -254,7 +238,7 @@ class POSController:
 	def update_content(self):
 		return self.ui.update_content()
 
-	def _update_content_internal(self):
+	def update_content_internal(self):
 		self.content_container.controls.clear()
 		current = self.navigator.get_current_step()
 		data = {}
@@ -277,10 +261,8 @@ class POSController:
 				qty = int(raw_qty or 0)
 
 				if prod is None:
-					page = getattr(self, 'page', None)
-					if page is not None:
-						page.snack_bar = ft.SnackBar(ft.Text(f"Producto asociado al carrito no existe (cart_id={cid})"), open=True)
-						page.update()
+					if self.page is not None:
+						self.show_error_dialog([f"Producto asociado al carrito no existe (cart_id={cid})"])
 					continue
 
 				line = {'product': prod, 'qty': qty, 'line_total': qty * int(getattr(prod, 'price', 0) or 0)}
@@ -299,7 +281,7 @@ class POSController:
 	def update_progress(self):
 		return self.ui.update_progress()
 
-	def _update_progress_internal(self):
+	def update_progress_internal(self):
 		progress = self.navigator.get_progress_percentage() / 100
 		self.progress_bar.value = progress
 		if getattr(self.progress_bar, 'page', None):
@@ -308,14 +290,12 @@ class POSController:
 	def next_step(self, e: Optional[ft.ControlEvent] = None):
 		return self.nav.next_step(e)
 
-	def _next_step_internal(self, e: Optional[ft.ControlEvent] = None):
+	def next_step_internal(self, e: Optional[ft.ControlEvent] = None):
 		current = self.navigator.get_current_step()
 		valid, errors = current.validate()
 		if not valid:
-			if e and hasattr(e, 'page') and e.page:
-				page = e.page
-				page.snack_bar = ft.SnackBar(ft.Text("; ".join(errors)))
-				page.update()
+			log.error(f"[POSController.next_step_internal] Hubo un error inesperado:", ";".join(errors))
+			self.show_validate_error_dialog([";".join(errors)])
 			return
 
 		if isinstance(current, ProductSelectionStep):
@@ -336,36 +316,32 @@ class POSController:
 				amount = 0
 			total = int(self.cart_total() or 0)
 			if amount < total:
-				if e and hasattr(e, 'page') and e.page:
-					page = e.page
-					page.snack_bar = ft.SnackBar(ft.Text("Monto insuficiente"))
-					page.update()
+				self.show_validate_error_dialog(["Monto insuficiente"])
 				return
-			try:
-				created = self.confirm_sale(payment_method='cash', payment_amount=amount)
-				if e and hasattr(e, 'page') and e.page:
-					page = e.page
-					page.snack_bar = ft.SnackBar(ft.Text(f"Venta registrada: {len(created) if created is not None else 0} items"))
-					page.update()
+			created = self.confirm_sale(payment_method='cash', payment_amount=amount)
+			if created:
+				log.info(f"[POSController.next_step_internal] Pago realizado. Venta registrada con éxito: {created}")
+				self.show_success_dialog("Pago realizado.")
 				self.navigator.reset()
 				self.cart.clear()
 				self.on_step_changed(self.navigator.current_step)
 				return
-			except Exception as ex:
-				log.error(f"Error finalizando venta: {ex}")
+			else:
+				log.error("[POSController.next_step_internal] Error finalizando venta.")
+				self.show_validate_error_dialog(["Error finalizando venta"])
 
 		self.navigator.next_step()
 
 	def prev_step(self, e: Optional[ft.ControlEvent] = None):
 		return self.nav.prev_step(e)
 
-	def _prev_step_internal(self, e: Optional[ft.ControlEvent] = None):
+	def prev_step_internal(self, e: Optional[ft.ControlEvent] = None):
 		self.navigator.prev_step()
 
-	def _update_nav_buttons(self) -> None:
-		return self.nav._update_nav_buttons()
+	def update_nav_buttons(self) -> None:
+		return self.nav.update_nav_buttons()
 
-	def _update_nav_buttons_internal(self) -> None:
+	def update_nav_buttons_internal(self) -> None:
 		if self.btn_prev is not None:
 			self.btn_prev.disabled = self.navigator.is_first_step()
 			if getattr(self.btn_prev, 'page', None):
@@ -381,7 +357,7 @@ class POSController:
 	def create_steps_layout(self) -> ft.Container:
 		return self.ui.create_steps_layout()
 
-	def _create_steps_layout_internal(self) -> ft.Container:
+	def create_steps_layout_internal(self) -> ft.Container:
 		self.load_products()
 
 		self.btn_prev = ft.ElevatedButton(
@@ -430,7 +406,7 @@ class POSController:
 		self.update_step_indicators()
 		self.update_content()
 		self.update_progress()
-		self._update_nav_buttons()
+		self.update_nav_buttons()
 		return ft.Container(content=main_content, expand=True, padding=ft.Padding(20, 20, 20, 20))
 
 	def on_select_cart_line(self, idx: int, checked: bool) -> None:
@@ -438,3 +414,14 @@ class POSController:
 
 	def remove_product_by_cart(self) -> None:
 		return self.cart_manager.remove_product_by_cart()
+		
+	def show_error_dialog(self, errors: list[str]):
+		error_msg = "\n".join(errors)
+		error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/sales"))
+		
+	def show_validate_error_dialog(self, errors: list[str]):
+		error_msg = "\n".join(errors)
+		error_dialog(self.page, error_msg) 
+		
+	def show_success_dialog(self, msg: str):
+		success_dialog(self.page, msg, on_close=lambda: self.page.go("/sales"))

@@ -26,7 +26,7 @@ class LoginForm(Form):
 
         button_submit = ft.ElevatedButton(
             text="Ingresar",
-            style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.LIGHT_BLUE_600),
+            style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.LIGHT_BLUE_600), # type: ignore
             on_click=lambda e: self.on_submit(self.get_data())
         )
 

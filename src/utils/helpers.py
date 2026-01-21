@@ -150,3 +150,34 @@ def selected_option_text(dd: Optional[ft.Dropdown]) -> str:
 			text_val = getattr(content, "value", None) if content else getattr(opt, "text", None)
 			return str(text_val or "")
 	return ""
+
+
+def autoincrement_sku() -> str:
+    prefix = "PRD-"
+    max_num = 0
+
+    try:
+        for product in get_products():
+            raw_sku = getattr(product, "sku", "") or ""
+            if not isinstance(raw_sku, str) or not raw_sku.startswith(prefix):
+                continue
+
+            num_part = raw_sku[len(prefix):].strip()
+            if not num_part.isdigit():
+                continue
+
+            max_num = max(max_num, int(num_part))
+
+        next_num = max_num + 1
+
+        format_rules = {
+            next_num < 10: "00{}",
+            10 <= next_num < 100: "0{}",
+        }
+
+        fmt = next((v for cond, v in format_rules.items() if cond), "{}")
+        num_str = fmt.format(next_num)
+
+        return f"{prefix}{num_str}"
+    except Exception:
+        return f"{prefix}001"

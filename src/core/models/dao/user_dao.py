@@ -21,7 +21,7 @@ class UserDAO:
 
 	def create_user(self, user: User) -> Optional[User]:
 		if self.cursor and self.db_conn:
-			log.info("Creando un nuevo usuario.")
+			log.info("[UserDAO.create_user] Creando un nuevo usuario.")
 			self.cursor.execute(
 				insert_user_inv,
 				(
@@ -35,55 +35,55 @@ class UserDAO:
 			self.db_conn.commit()
 			row: Any = self.cursor.fetchone()
 			user_created = row_to_entity(row=list(row))
-			log.info(f"Usuario creado: {user_created}")
+			log.info(f"[UserDAO.create_user] Usuario creado: {user_created}.")
 			return user_created
 		else:
-			log.error("Error al crear usuario.")
+			log.error("[UserDAO.create_user] Error al crear usuario.")
 			return None
 
 	def get_user_by_id(self, user_id: int) -> Optional[User]:
 		if self.cursor and self.db_conn:
-			log.info("Obteniendo usuario por id.")
+			log.info("[UserDAO.get_user_by_id] Obteniendo usuario por id.")
 			self.cursor.execute(select_user_by_id, (user_id,))
 			row: Any = self.cursor.fetchone()
 			if not row:
 				return None
 			user = row_to_entity(row=list(row))
-			log.info(f"Usuario obtenido: {user}")
+			log.info(f"[UserDAO.get_user_by_id] Usuario obtenido: {user}")
 			return user
 		else:
-			log.error("Error al obtener usuario por id.")
+			log.error("[UserDAO.get_user_by_id] Error al obtener usuario por id.")
 			return None
 
 	def get_user_by_username(self, username: str) -> Optional[User]:
 		if self.cursor and self.db_conn:
-			log.info("Obteniendo usuario por username.")
+			log.info("[UserDAO.get_user_by_username] Obteniendo usuario por username.")
 			self.cursor.execute(select_user_by_username, (username,))
 			row: Any = self.cursor.fetchone()
 			if not row:
 				return None
 			user = row_to_entity(row=list(row))
-			log.info(f"Usuario obtenido por username: {user}")
+			log.info(f"[UserDAO.get_user_by_username] Usuario obtenido por username: {user}.")
 			return user
 		else:
-			log.error("Error al obtener usuario por username.")
+			log.error("[UserDAO.get_user_by_username] Error al obtener usuario por username.")
 			return None
 
 	def get_all_users(self) -> List[User]:
 		if self.cursor and self.db_conn:
-			log.info("Obteniendo todos los usuarios.")
+			log.info("[UserDAO.get_all_users] Obteniendo todos los usuarios.")
 			self.cursor.execute(select_all_users)
 			rows: List[Any] = self.cursor.fetchall()
 			users = [row_to_entity(list(r)) for r in rows]
-			log.info(f"Usuarios obtenidos: {users}")
+			log.info(f"[UserDAO.get_all_users] Usuarios obtenidos: {users}.")
 			return users
 		else:
-			log.error("Error al obtener usuarios.")
+			log.error("[UserDAO.get_all_users] Error al obtener usuarios.")
 			return []
 
 	def edit_user(self, user: User) -> Optional[User]:
 		if self.cursor and self.db_conn:
-			log.info("Editando usuario.")
+			log.info("[UserDAO.edit_user] Editando usuario.")
 			self.cursor.execute(
 				update_user_inv,
 				(
@@ -100,38 +100,36 @@ class UserDAO:
 			if not row:
 				return None
 			user_updated = row_to_entity(row=list(row))
-			log.info(f"Usuario actualizado: {user_updated}")
+			log.info(f"[UserDAO.edit_user] Usuario actualizado: {user_updated}.")
 			return user_updated
 		else:
-			log.error("Error al editar usuario.")
+			log.error("[UserDAO.edit_user] Error al editar usuario.")
 			return None
 
 	def update_role(self, user_id: int, role_inv_id: int) -> Optional[User]:
-		"""Update only role_inv_id for a user and return the updated User entity (including password).
-		This avoids overwriting the password when only changing role."""
 		if self.cursor and self.db_conn:
-			log.info(f"Actualizando role_inv_id para user_id={user_id} -> role_inv_id={role_inv_id}")
+			log.info(f"[UserDAO.update_role] Actualizando role_inv_id para user_id={user_id} -> role_inv_id={role_inv_id}.")
 			self.cursor.execute(update_user_role, (role_inv_id, user_id))
 			self.db_conn.commit()
 			row: Any = self.cursor.fetchone()
 			if not row:
-				log.warning(f"No se actualizó role para user_id={user_id}")
+				log.warning(f"[UserDAO.update_role] No se actualizó role para user_id={user_id}.")
 				return None
 			user_updated = row_to_entity(row=list(row))
-			log.info(f"Role actualizado para usuario: {user_updated}")
+			log.info(f"[UserDAO.update_role] Role actualizado para usuario: {user_updated}.")
 			return user_updated
 		else:
-			log.error("Error al actualizar role de usuario: sin conexión DB.")
+			log.error("[UserDAO.update_role] Error al actualizar role de usuario: sin conexión DB.")
 			return None
 
 	def delete_user(self, user_id: int) -> bool:
 		if self.cursor and self.db_conn:
-			log.info("Eliminando usuario.")
+			log.info("[UserDAO.delete_user] Eliminando usuario.")
 			self.cursor.execute(delete_user_inv, (user_id,))
 			self.db_conn.commit()
 			deleted = self.cursor.rowcount > 0
-			log.info(f"Usuario eliminado: {deleted}")
+			log.info(f"[UserDAO.delete_user] Usuario eliminado: {deleted}.")
 			return deleted
 		else:
-			log.error("Error al eliminar usuario.")
+			log.error("[UserDAO.delete_user] Error al eliminar usuario.")
 			return False

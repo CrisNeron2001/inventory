@@ -1,16 +1,19 @@
 import flet as ft
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, cast
 
 class BrandSummaryStep:
-	def __init__(self, brands, error=None):
+	def __init__(self, brands, error: str, page: ft.Page):
 		self.title = "Resumen de marca"
 		self.brands = brands
 		self.error = error
 		self.page_size = 5
 		self.current_page = 0
 		self.parent: Optional[Any] = None
+		self.page = page
 
-	def create_controls(self, form_data: Optional[Dict[str, Any]] = None) -> List[ft.Control]:
+	def create_controls(self, context: Optional[Dict[str, Any]] = None) -> List[ft.Control]:
+		if context is not None and 'parent' in context:
+			self.parent = context['parent']
 		controls = [
 			ft.Text(self.title, size=18, weight=ft.FontWeight.BOLD),
 			ft.Divider(height=20),
@@ -41,8 +44,6 @@ class BrandSummaryStep:
 			)
 		)
 		controls.append(ft.Row(pag_controls, alignment=ft.MainAxisAlignment.CENTER))
-		controls.append(ft.ElevatedButton(text="Finalizar", icon=ft.Icons.CHECK, on_click=self.go_home))
-		from typing import cast
 		return cast(List[ft.Control], [ft.Container(ft.Column(controls), expand=True)])
 	
 	def create_table(self, items, title):
@@ -56,13 +57,7 @@ class BrandSummaryStep:
 		page_items = items[start:end]
 		rows = []
 		for item in page_items:
-			if hasattr(item, "__dict__"):
-				data = item.__dict__
-				value = data.get("name", str(item))
-			elif isinstance(item, dict):
-				value = item.get("name", str(item))
-			else:
-				value = str(item)
+			value = str(item)
 			row_cells = [ft.DataCell(ft.Text(value, size=12))]
 			rows.append(ft.DataRow(cells=row_cells))
 		return ft.Container(
@@ -90,18 +85,6 @@ class BrandSummaryStep:
 			self.parent.update_content()
 			if hasattr(self.parent, 'page') and self.parent.page:
 				self.parent.page.update()
-
-	def go_home(self, e):
-		# Redirigir a home si hay acceso a la página
-		page = None
-		if hasattr(self, 'parent') and self.parent:
-			if hasattr(self.parent, 'page'):
-				page = self.parent.page
-		if not page:
-			import flet as ft
-			page = getattr(ft, 'page', None)
-		if page:
-			page.go("/")
 	
 	def get_data(self) -> Dict[str, Any]:
 		return {

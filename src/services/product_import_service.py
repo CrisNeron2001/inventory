@@ -6,10 +6,21 @@ from core.models.dto.brand_dto import BrandDTO
 from services.category_service import CategoryService
 from services.brand_service import BrandService
 from services.product_service import ProductService
-from utils.helpers import autoincrement_id
+from utils.helpers import autoincrement_id, autoincrement_sku
 from config.settings import log
+import unicodedata
 
 class ProductNormalizer:
+	@staticmethod
+	def normalize_text(value: str) -> str:
+		if value is None:
+			return ""
+		text = str(value).strip().lower()
+		nfkd = unicodedata.normalize("NFKD", text)
+		text = "".join(c for c in nfkd if not unicodedata.combining(c))
+		text = " ".join(text.split())
+		return text
+	
 	@staticmethod
 	def clean(val):
 		if pd.isna(val) or val == '' or (isinstance(val, str) and val.strip() == ''):
@@ -26,39 +37,41 @@ class ProductNormalizer:
 
 	@staticmethod
 	def normalize_description(desc):
-		return str(desc or '').strip()
+		return str(desc or '*Ingrese una descripción').strip()
 
 	@staticmethod
 	def normalize_stock(stock_raw):
 		try:
 			if stock_raw is None:
 				return 0
-			if isinstance(stock_raw, int):
-				return stock_raw
-			if isinstance(stock_raw, float):
-				# Solo aceptar float si es entero exacto
-				if stock_raw.is_integer():
-					return int(stock_raw)
-				else:
-					return 0
+
+			allowed = {"": 0, "NULL": 0, "NAN": 0, "NONE": 0}
+
 			if isinstance(stock_raw, str):
-				stock_str = stock_raw.strip().replace(',', '').replace(' ', '')
-				if stock_str.upper() in ['', 'NULL', 'NAN']:
-					return 0
-				# Intentar convertir a int
+				stock_str = stock_raw.strip()
+				normalized = stock_str.upper()
+				if normalized in allowed:
+					return allowed[normalized]
+
+				cleaned = stock_str.replace(" ", "").replace(",", "")
+				cleaned = cleaned.replace('"', "").replace("'", "")
+
 				try:
-					# Si es float pero termina en .0, lo acepta como int
-					val = float(stock_str.replace('"', '').replace("'", ''))
-					if val.is_integer():
-						return int(val)
-					else:
-						return 0
+					val = float(cleaned)
+					return int(val) if val.is_integer() and val >= 0 else 0
+				except Exception:
+					return 0
+
+			if isinstance(stock_raw, (int, float)):
+				try:
+					val = float(stock_raw)
+					return int(val) if val.is_integer() and val >= 0 else 0
 				except Exception:
 					return 0
 			return 0
 		except Exception:
 			return 0
-
+	
 	@staticmethod
 	def normalize_price(price_raw):
 		if isinstance(price_raw, str):
@@ -72,20 +85,38 @@ class ProductNormalizer:
 				return int(price_raw) if price_raw else 0
 			except Exception:
 				return 0
-
+			
 	@staticmethod
 	def normalize_is_available(stock, is_available_raw):
-		is_available_str = str(is_available_raw).strip().lower() if is_available_raw is not None else ''
-		if stock > 0:
-			return True
-		elif is_available_str in ['1', 'true', 'disponible', 'yes', 'si', 'y', 't']:
-			return True
+		try:
+			s = int(stock or 0)
+		except Exception:
+			s = 0
+
+		stock_checks = {
+			'zero': s == 0,
+			'positive': s > 0
+		}
+		stock_results = {
+			'zero': False,
+			'positive': True
+		}
+
+		for key, cond in stock_checks.items():
+			if cond:
+				return stock_results[key]
+
+		if is_available_raw is None or (isinstance(is_available_raw, float) and pd.isna(is_available_raw)):
+			val = ""
 		else:
-			return False
+			val = str(is_available_raw).strip().lower()
+
+		falsy = {"0", "false", "no", "n", "f"}
+		return False if val in falsy else True
 
 	@staticmethod
-	def normalize_sku(sku):
-		return str(sku).strip() if sku else None
+	def normalize_sku(sku_raw):
+		return str(sku_raw).strip() if sku_raw else None
 
 class ProductImporter:
 	def __init__(self):
@@ -99,6 +130,8 @@ class ProductImporter:
 		if cat_val is None:
 			return None
 
+		norm_input_name = ProductNormalizer.normalize_text(str(cat_val))
+		
 		cat_id = None
 		try:
 			cat_id = int(cat_val)
@@ -110,68 +143,54 @@ class ProductImporter:
 			if category:
 				return category
 
-			# try to find in provided category sheet by id
-			if cat_df is not None:
-				for _, r in cat_df.iterrows():
-					try:
-						raw_val = ProductNormalizer.clean(r.get('category_id', r.get('id', None)))
-						if raw_val is None:
-							continue
-						row_id = int(raw_val)
-						if row_id == cat_id:
-							cname = str(ProductNormalizer.clean(r.get('name', r.get('nombre', '')))).strip()
-							exists = next((c for c in self.categories if c.name.strip().lower() == (cname or '').lower()), None)
-							if exists:
-								return exists
-							category = self.category_service.create_category(
-								CategoryDTO(
-									category_id=cat_id, 
-									name=cname or f'Category {cat_id}'
-									)
-								)
-							if category:
-								self.categories.append(category)
-							return category
-					except Exception:
-						continue
-
-		# try by name
-		cat_name = str(cat_val).strip().lower()
-		if cat_name == '':
+		if norm_input_name == "":
 			return None
-		category = next((c for c in self.categories if c.name.strip().lower() == cat_name), None)
-		if category:
-			return category
+		for c in self.categories:
+			cname_norm = ProductNormalizer.normalize_text(getattr(c, 'name', ''))
+			if cname_norm == norm_input_name:
+				return c
 
-		# try to find or create from category sheet by name
 		if cat_df is not None:
-			match_row = next((r for _, r in cat_df.iterrows() if str(ProductNormalizer.clean(r.get(
-				'name', 
-				r.get('nombre', '')
-			))).strip().lower() == cat_name), None)
+			match_row = None
+			for _, r in cat_df.iterrows():
+				row_name = ProductNormalizer.clean(r.get('name', r.get('name', '')))
+				row_name_norm = ProductNormalizer.normalize_text(str(row_name))
+				if row_name_norm == norm_input_name:
+					match_row = r
+					break
+
 			if match_row is not None:
 				new_id = None
 				for icol in ('category_id', 'id'):
 					try:
 						val = ProductNormalizer.clean(match_row.get(icol))
 						if val is not None:
-							new_id = int(val)
+							candidate_id = int(val)
+							if next((c for c in self.categories if getattr(c, 'category_id', None) == candidate_id), None) is None:
+								new_id = candidate_id
 							break
 					except Exception:
 						continue
-				exists = next((c for c in self.categories if c.name.strip().lower() == cat_name), None)
-				if exists:
-					return exists
+
+				for c in self.categories:
+					cname_norm = ProductNormalizer.normalize_text(getattr(c, 'name', ''))
+					if cname_norm == norm_input_name:
+						return c
+
 				cid = new_id if new_id is not None else autoincrement_id()
-				category = self.category_service.create_category(CategoryDTO(
-					category_id=cid, 
-					name=str(
-						match_row.get(
-							'name', 
-							match_row.get(
-								'nombre', 
-								cat_name))).strip()))
+				category_name = str(
+					match_row.get(
+						'name', 
+						match_row.get('nombre', cat_val))
+					).strip()
+				category = self.category_service.create_category(
+					CategoryDTO(
+						category_id=cid,
+						name=category_name
+					)
+				)
 				if category:
+					log.info(f"[ProductImporter.find_category] Nueva categoría creada desde Excel: id={cid}, nombre='{category_name}' (valor original: '{cat_val}')")
 					self.categories.append(category)
 					return category
 
@@ -181,7 +200,8 @@ class ProductImporter:
 		if brand_val is None:
 			return None
 
-		# try by numeric id
+		norm_input_name = ProductNormalizer.normalize_text(str(brand_val))
+
 		brand_id = None
 		try:
 			brand_id = int(brand_val)
@@ -193,158 +213,136 @@ class ProductImporter:
 			if brand:
 				return brand
 
-			# try to find in provided brand sheet by id
-			if brand_df is not None:
-				for _, r in brand_df.iterrows():
-					try:
-						raw_val = ProductNormalizer.clean(r.get('brand_id', r.get('id', None)))
-						if raw_val is None:
-							continue
-						row_id = int(raw_val)
-						if row_id == brand_id:
-							bname = str(ProductNormalizer.clean(r.get('name', r.get('nombre', '')))).strip()
-							exists = next((b for b in self.brands if b.name.strip().lower() == (bname or '').lower()), None)
-							if exists:
-								return exists
-							brand = self.brand_service.create_brand(BrandDTO(brand_id=brand_id, name=bname or f'Brand {brand_id}'))
-							if brand:
-								self.brands.append(brand)
-							return brand
-					except Exception:
-						continue
-
-		# try by name
-		brand_name = str(brand_val).strip().lower()
-		if brand_name == '':
+		if norm_input_name == "":
 			return None
-		brand = next((b for b in self.brands if b.name.strip().lower() == brand_name), None)
-		if brand:
-			return brand
+		for b in self.brands:
+			bname_norm = ProductNormalizer.normalize_text(getattr(b, 'name', ''))
+			if bname_norm == norm_input_name:
+				return b
 
-		# try to find or create from brand sheet by name
 		if brand_df is not None:
-			match_row = next((r for _, r in brand_df.iterrows() if str(ProductNormalizer.clean(
-				r.get('name', 
-		  		r.get('nombre', 
-				'')))).strip().lower() == brand_name), None)
+			match_row = None
+			for _, r in brand_df.iterrows():
+				row_name = ProductNormalizer.clean(r.get('name', r.get('nombre', '')))
+				row_name_norm = ProductNormalizer.normalize_text(str(row_name))
+				if row_name_norm == norm_input_name:
+					match_row = r
+					break
+
 			if match_row is not None:
 				new_id = None
 				for icol in ('brand_id', 'id'):
 					try:
 						val = ProductNormalizer.clean(match_row.get(icol))
 						if val is not None:
-							new_id = int(val)
+							candidate_id = int(val)
+							if next((b for b in self.brands if getattr(b, 'brand_id', None) == candidate_id), None) is None:
+								new_id = candidate_id
 							break
 					except Exception:
 						continue
-				exists = next((b for b in self.brands if b.name.strip().lower() == brand_name), None)
-				if exists:
-					return exists
+
+				for b in self.brands:
+					bname_norm = ProductNormalizer.normalize_text(getattr(b, 'name', ''))
+					if bname_norm == norm_input_name:
+						return b
+
 				bid = new_id if new_id is not None else autoincrement_id()
-				brand = self.brand_service.create_brand(BrandDTO(
-					brand_id=bid, 
-					name=str(
-						match_row.get('name', match_row.get('nombre', brand_name))).strip()))
+				brand_name = str(match_row.get('name', match_row.get('name', brand_val))).strip()
+				brand = self.brand_service.create_brand(
+					BrandDTO(
+						brand_id=bid,
+						name=brand_name
+					)
+				)
 				if brand:
+					log.info(f"[ProductImporter.find_brand] Nueva marca creada desde Excel: id={bid}, nombre='{brand_name}' (valor original: '{brand_val}')")
 					self.brands.append(brand)
 					return brand
 
 		return None
 
 	def import_products(self, filepath: str) -> List[ProductDTO]:
-		print(f"[DEBUG] import_products llamado con: {filepath}")
-		log.info(f"[IMPORT] Iniciando importación de productos desde archivo: {filepath}")
+		log.info(f"[ProductImporter.import_product] Iniciando importación de productos desde archivo: {filepath}")
 		try:
 			if filepath.endswith('.csv'):
-				print(f"[DEBUG] Leyendo CSV: {filepath}")
 				df = pd.read_csv(filepath)
 				sheets = {'Product': df}
 			elif filepath.endswith('.xlsx'):
-				print(f"[DEBUG] Leyendo XLSX: {filepath}")
 				xl = pd.ExcelFile(filepath)
 				sheets = {name: xl.parse(name) for name in xl.sheet_names}
 			else:
-				log.error(f"[IMPORT] Formato de archivo no soportado: {filepath}")
-				print(f"[DEBUG] Formato de archivo no soportado: {filepath}")
+				log.error(f"[ProductImporter.import_product] Formato de archivo no soportado: {filepath}")
 				raise ValueError('Formato de archivo no soportado. Usa .csv o .xlsx')
 		except Exception as e:
-			log.error(f"[IMPORT] Error al leer archivo: {e}")
-			print(f"[DEBUG] Error al leer archivo: {e}")
+			log.error(f"[ProductImporter.import_product] Error al leer archivo: {e}")
 			return []
 
-		# Buscar hojas
 		prod_df = sheets.get('Product')
 		cat_df = sheets.get('Category')
 		brand_df = sheets.get('Brand')
 		if prod_df is None:
-			log.error("[IMPORT] No se encontró hoja 'Product' en el archivo.")
-			print("[DEBUG] No se encontró hoja 'Product' en el archivo.")
+			log.error("[ProductImporter.import_product] No se encontró hoja 'Product' en el archivo.")
 			return []
 		if cat_df is None:
-			log.warning("[IMPORT] No se encontró hoja 'Category', se omite normalización de categorías.")
-			print("[DEBUG] No se encontró hoja 'Category', se omite normalización de categorías.")
+			log.warning("[ProductImporter.import_product] No se encontró hoja 'Category', se omite normalización de categorías.")
 		if brand_df is None:
-			log.warning("[IMPORT] No se encontró hoja 'Brand', se omite normalización de marcas.")
-			print("[DEBUG] No se encontró hoja 'Brand', se omite normalización de marcas.")
+			log.warning("[ProductImporter.import_product] No se encontró hoja 'Brand', se omite normalización de marcas.")
 
 		products = []
-		print(f"[DEBUG] Filas a procesar: {len(prod_df)}")
-		log.info(f"[IMPORT] Filas a procesar: {len(prod_df)}")
+		new_sku = None
+		log.info(f"[ProductImporter.import_product] Filas a procesar: {len(prod_df)}")
 		for idx, row in prod_df.iterrows():
 			try:
-				name = ProductNormalizer.normalize_name(ProductNormalizer.clean(row.get('name', '')))
-				if not name:
-					log.warning(f"[IMPORT] Fila {idx}: nombre vacío, se omite.")
-					print(f"[DEBUG] Fila {idx}: nombre vacío, se omite.")
+				field_name = ProductNormalizer.normalize_name(ProductNormalizer.clean(row.get('name', '')))
+				if not field_name:
+					log.warning(f"[ProductImporter.import_product] Fila {idx}: nombre vacío, se omite.")
 					continue
-				description = ProductNormalizer.normalize_description(ProductNormalizer.clean(row.get('description', '')))
-				stock = ProductNormalizer.normalize_stock(ProductNormalizer.clean(row.get('stock', 0)))
-				price = ProductNormalizer.normalize_price(ProductNormalizer.clean(row.get('price', 0)))
-				sku = ProductNormalizer.normalize_sku(ProductNormalizer.clean(row.get('sku', '')))
-				is_available = ProductNormalizer.normalize_is_available(stock, ProductNormalizer.clean(row.get('is_available', None)))
+				field_description = ProductNormalizer.normalize_description(ProductNormalizer.clean(row.get('description', '*Ingrese una descripción')))
+				field_stock = ProductNormalizer.normalize_stock(ProductNormalizer.clean(row.get('stock', 0)))
+				field_price = ProductNormalizer.normalize_price(ProductNormalizer.clean(row.get('price', 0)))
+				field_sku = ProductNormalizer.normalize_sku(ProductNormalizer.clean(row.get('sku', '')))
+				field_is_available = ProductNormalizer.normalize_is_available(field_stock, ProductNormalizer.clean(row.get('is_available', None)))
+				new_sku = field_sku if field_sku is not None else autoincrement_sku()
 
-				# Buscar categoría por id o nombre usando hoja Category
-				cat_val = ProductNormalizer.clean(row.get('category_id', row.get('category', None)))
-				category = self.find_category(cat_val, cat_df)
-				if category is None:
-					log.warning(f"[IMPORT] Fila {idx}: categoría no encontrada, se omite.")
-					print(f"[DEBUG] Fila {idx}: categoría no encontrada, se omite.")
+				cat_val = ProductNormalizer.clean(row.get('category'))
+				if cat_val is None:
+					cat_val = ProductNormalizer.clean(row.get('category_name'))
+				
+				brand_val = ProductNormalizer.clean(row.get('brand'))
+				if brand_val is None:
+					brand_val = ProductNormalizer.clean(row.get('brand_name'))
+				
+				field_category = self.find_category(cat_val, cat_df)
+				if field_category is None:
+					log.warning(f"[ProductImporter.import_product] Fila {idx}: categoría no encontrada, se omite. Valor recibido: {cat_val}")
 					continue
-
-				# Buscar marca por id o nombre usando hoja Brand
-				brand_val = ProductNormalizer.clean(row.get('brand_id', row.get('brand', None)))
-				brand = self.find_brand(brand_val, brand_df)
-				if brand is None:
-					log.warning(f"[IMPORT] Fila {idx}: marca no encontrada, se omite.")
-					print(f"[DEBUG] Fila {idx}: marca no encontrada, se omite.")
+				
+				field_brand = self.find_brand(brand_val, brand_df)
+				if field_brand is None:
+					log.warning(f"[ProductImporter.import_product] Fila {idx}: marca no encontrada, se omite. Valor recibido: {brand_val}")
 					continue
-
+				
 				dto = ProductDTO(
 					product_id=autoincrement_id(),
-					name=name,
-					description=description,
-					stock=stock,
-					price=price,
-					sku=sku,
-					is_available=is_available,
-					category=category,
-					brand=brand
+					name=field_name,
+					description=field_description,
+					stock=field_stock,
+					price=field_price,
+					sku=new_sku,
+					is_available=field_is_available,
+					category=field_category,
+					brand=field_brand,
 				)
 				created_product = self.product_service.create_product(dto)
 				products.append(created_product)
-				log.info(f"[IMPORT] Fila {idx}: producto '{name}' importado correctamente.")
-				print(f"[DEBUG] Fila {idx}: producto '{name}' importado correctamente.")
+				log.info(f"[ProductImporter.import_product] Fila {idx}: producto '{field_name}' importado correctamente.")
 			except Exception as ex:
-				log.error(f"[IMPORT] Fila {idx}: error al importar producto: {ex}")
-				print(f"[DEBUG] Fila {idx}: error al importar producto: {ex}")
-		print(f"[DEBUG] Total productos importados: {len(products)}")
-		log.info(f"[IMPORT] Total productos importados: {len(products)}")
+				log.error(f"[ProductImporter.import_product] Fila {idx}: error al importar producto: {ex}")
+		log.info(f"[ProductImporter.import_product] Total productos importados: {len(products)}")
 		return products
 
-# API principal para importar productos
 def load_products_from_file(filepath: str) -> List[ProductDTO]:
-    print(f"[DEBUG] load_products_from_file llamado con: {filepath}")
     importer = ProductImporter()
     productos = importer.import_products(filepath)
-    print(f"[DEBUG] Productos importados: {len(productos)}")
     return productos

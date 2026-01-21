@@ -5,15 +5,17 @@ from services.role_service import RoleService
 from core.models.dto.user_dto import UserDTO
 from gui.components.form.user_form import UserForm
 from gui.validators.user_form_validador import UserFormValidator
+from gui.components.dialog.validate.success.success_dialog import success_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 from config.settings import log
 
 class EditUserFormController:
-    def __init__(self, user_id: int, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page, user_id: int):
         self.user_service = UserService()
         self.role_service = RoleService()
         self.validator = UserFormValidator()
         self.user_id = user_id
-        self.router_callback = router_callback
+        self.page = page
         self.roles = []
         roles = self.role_service.get_all_roles()
         self.roles = [ { 'role_inv_id': r.role_inv_id, 'name': r.name } for r in roles ]
@@ -51,7 +53,8 @@ class EditUserFormController:
                 resolved_role_inv = 0
                 
         if not is_valid:
-            log.error(f"Error al validar el formulario: {errors}")
+            log.error(f"[EditUserFormController.on_submit] Error al validar el formulario: {errors}")
+            self.show_validate_error_dialog(errors)
             return
 
         dto = UserDTO(
@@ -64,13 +67,27 @@ class EditUserFormController:
             role_inv=None,
         )
 
-        updated = self.user_service.update_user(dto)
-        if updated and self.router_callback:
-            self.router_callback("/users")
-        return updated
+        user_updated = self.user_service.update_user(dto)
+        if user_updated:
+            log.info(f"[EditUserFormController.on_submit] Usuario editado: {getattr(user_updated, 'username', '')}.")
+            return self.show_success_dialog(f"Usuario editado: {getattr(user_updated, 'username', '')}.")
+        else:
+            log.error("[EditUserFormController.on_submit] No se pudo editar el usuario. Intente nuevamente.")
+            return self.show_validate_error_dialog(["No se pudo editar el usuario. Intente nuevamente."])
 
     def create_form_layout(self) -> ft.Container:
         data = self.load_user()
         form = UserForm(self.on_submit, roles=self.roles, is_edit=True)
         controls = form.create_controls(data)
         return ft.Container(content=ft.Column(controls), width=420)
+    
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))
+		
+    def show_validate_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg) 
+        
+    def show_success_dialog(self, msg: str):
+        success_dialog(self.page, msg, on_close=lambda: self.page.go("/"))

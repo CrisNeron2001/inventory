@@ -2,8 +2,6 @@ from core.abstracts.form import Form
 from core.models.dto.cart_product_dto import CartProductDTO
 from typing import Optional, List, Any
 import flet as ft
-from config.settings import log
-
 
 class ProductSelectionStep(Form):
 	def __init__(self):
@@ -241,12 +239,7 @@ class ProductSelectionStep(Form):
 				svc = getattr(self, '_cart_service', None)
 				remove_fn = getattr(svc, 'remove_products_by_cart', None)
 				if callable(remove_fn):
-					try:
-						log.info(f"ProductSelectionStep._remove_item calling remove_products_by_cart for cart_id={cart_id_int}, product_id={pid}")
-						res = remove_fn(cp)
-						log.info(f"ProductSelectionStep._remove_item remove_fn result: {res}")
-					except Exception as e:
-						log.error(f"Error calling remove_products_by_cart: {e}")
+					res = remove_fn(cp)
 
 			if getattr(self, '_cart_service', None) and getattr(self, '_cart_id', None):
 				self._reload_lines()

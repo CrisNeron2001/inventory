@@ -28,10 +28,10 @@ def product_import_dialog(page: ft.Page, file_picker: Optional[ft.FilePicker] = 
 	)
 
 	loading_dialog = ft.CupertinoAlertDialog(
-		title=ft.Text("Normalizando..."),
+		title=ft.Text("Normalizando"),
 		content=ft.Row([
 			ft.ProgressRing(),
-			ft.Text("Cargando y normalizando productos...", size=14)
+			ft.Text("Cargando...", size=14)
 		], alignment=ft.MainAxisAlignment.CENTER),
 		actions=[]
 	)
@@ -88,18 +88,27 @@ def product_import_dialog(page: ft.Page, file_picker: Optional[ft.FilePicker] = 
 		try:
 			result = import_func(selected_file)
 			products = [p for p in result if p]
-			categories_list = []
+			categories_set = set()
+			brands_set = set()
 			for p in products:
-				val = (p.get("category") if isinstance(p, dict) else getattr(p, "category", None))
-				if val is not None:
-					categories_list.append(str(val))
-			categories = sorted(set(categories_list))
-			brands_list = []
-			for p in products:
-				val = (p.get("brand") if isinstance(p, dict) else getattr(p, "brand", None))
-				if val is not None:
-					brands_list.append(str(val))
-			brands = sorted(set(brands_list))
+				cat_obj = (p.get("category") if isinstance(p, dict) else getattr(p, "category", None))
+				if cat_obj is not None:
+					if isinstance(cat_obj, dict):
+						name = str(cat_obj.get("name", "")).strip()
+					else:
+						name = str(getattr(cat_obj, "name", cat_obj)).strip()
+					if name:
+						categories_set.add(name)
+				brand_obj = (p.get("brand") if isinstance(p, dict) else getattr(p, "brand", None))
+				if brand_obj is not None:
+					if isinstance(brand_obj, dict):
+						bname = str(brand_obj.get("name", "")).strip()
+					else:
+						bname = str(getattr(brand_obj, "name", brand_obj)).strip()
+					if bname:
+						brands_set.add(bname)
+			categories = sorted(categories_set)
+			brands = sorted(brands_set)
 			import_error = None
 			show_result_dialog(success=True, message=f"Se importaron {len(products)} productos, {len(categories)} categorías y {len(brands)} marcas correctamente.")
 			if on_import_finished:

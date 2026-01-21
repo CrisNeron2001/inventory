@@ -11,26 +11,26 @@ class CategoryService:
     def create_category(self, category_dto: CategoryDTO) -> CategoryDTO | None:
         category = dto_to_entity(category_dto)
         new_category = self.dao.create_category(category=category)
-        log.info(f"Nueva categoria creada: {new_category}")
+        log.info(f"[CategoryService.create_category] Creando una nueva categoria: {new_category}")
         return entity_to_dto(new_category) if new_category else None
     
     def get_category_by_id(self, category_id: int) -> CategoryDTO | None:
         category = self.dao.get_category_by_id(category_id=category_id)
-        log.info(f"Categoria obtenida por id: {category}")
+        log.info(f"[CategoryService.get_category_by_id] Obteniendo una categoria por id: {category}")
         return entity_to_dto(category) if category else None
     
     def get_all_categories(self) -> List[CategoryDTO]:
         categorys = self.dao.get_all_categories()
-        log.info(f"Obtenido todas las categorias: {categorys}")
+        log.info(f"[CategoryService.get_all_categories] Obteniendo todas las categorias: {categorys}")
         return [entity_to_dto(category) for category in categorys]
     
     def update_category(self, category_dto: CategoryDTO) -> CategoryDTO | None:
         category = dto_to_entity(category_dto)
         updated_category = self.dao.edit_category(category=category)
-        log.info(f"Categoria modificada: {updated_category}")
+        log.info(f"[CategoryService.update_category] Modificando categoria: {updated_category}")
         return entity_to_dto(updated_category) if updated_category else None
     
     def delete_category(self, category_id: int) -> bool | None:
         category = self.dao.delete_category(category_id=category_id)
-        log.info(f"Categoria eliminada: {category}")
+        log.info(f"[CategoryService.delete_category] Removiendo categoria: {category}")
         return True if category else False 

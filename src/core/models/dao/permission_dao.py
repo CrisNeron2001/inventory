@@ -21,11 +21,11 @@ class PermissionDAO:
 
     def create_permission(self, permission_key: str, description: Optional[str] = None) -> bool:
         if self.cursor and self.db_conn:
-            log.info(f"Insertando permiso {permission_key}")
+            log.info(f"[PermissionDAO.create_permission] Insertando permiso {permission_key}.")
             self.cursor.execute(insert_permission, (permission_key, description))
             self.db_conn.commit()
             return True
-        log.error("No hay conexión para crear permiso")
+        log.error("[PermissionDAO.create_permission] No hay conexión para crear permiso.")
         return False
 
     def get_permission(self, permission_key: str) -> Optional[Permission]:

@@ -1,5 +1,4 @@
 import flet as ft
-from inspect import signature
 from typing import Optional
 from gui.components.dialog.product.product_import_dialog import product_import_dialog
 

@@ -1,18 +1,16 @@
 from core.abstracts.info import Info
-from typing import Sequence, Optional, Callable, Any, cast
+from typing import Sequence, Optional, Any
 from dataclasses import is_dataclass, asdict
 import flet as ft
 from gui.components.dialog.sale.delete_sale_dialog import delete_sale_dialog
 from gui.views.sale.sale_detail_view import sale_detail_view
 from services.session_service import SessionService
-from services.cart_service import CartService
-from config.settings import log
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class SaleInfoTable(Info):
-    def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page):
         super().__init__("Ventas", "sale_info_table")
         self.sales_data: Sequence[dict] = []
-        self.router_callback = router_callback
         self.current_page: int = 1
         self.page_size: int = 5
         self._table_container: Optional[ft.Container] = None
@@ -21,6 +19,7 @@ class SaleInfoTable(Info):
         self._btn_prev: Optional[ft.IconButton] = None
         self._btn_next: Optional[ft.IconButton] = None
         self._table_height: int = 520
+        self.page = page
 
     def create_controls(self, info_data: Any) -> list[ft.Control]:
         carts_cache: dict[int, list] = {}
@@ -189,35 +188,34 @@ class SaleInfoTable(Info):
 
     def on_view(self, e: ft.ControlEvent, sale_id: int):
         try:
-            if self.router_callback:
-                self.router_callback(f"/sales/view/{sale_id}")
+            if self.page:
+                self.page.go(f"/sales/view/{sale_id}")
                 return
 
-            content = sale_detail_view(sale_id)
-            if hasattr(e, "page") and getattr(e, "page") is not None:
-                e.page.views.append(ft.View(route=f"/sales/view/{sale_id}", controls=[
+            content = sale_detail_view(sale_id, self.page)
+            self.page.views.append(ft.View(route=f"/sales/view/{sale_id}", controls=[
                     ft.AppBar(title=ft.Text(f"Detalle venta #{sale_id}")),
                     content,
                 ]))
-                e.page.go(f"/sales/view/{sale_id}")
+            self.page.go(f"/sales/view/{sale_id}")
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
 
     def on_delete(self, e: ft.ControlEvent, sale_id: int):
         try:
             delete_sale_dialog(
-                e.page,
+                self.page,
                 int(sale_id),
-                on_deleted=lambda: self.router_callback("/sales") if self.router_callback else None
+                on_deleted=lambda: self.page.go("/sales") if self.page else None
             )
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
 
     def on_edit(self, sale_id: int):
-        if self.router_callback:
-            self.router_callback(f"/sales/edit/{sale_id}")
+        if self.page:
+            self.page.go(f"/sales/edit/{sale_id}")
 
     def get_data(self) -> dict:
         return {'sales': self.sales_data, 'total': len(self.sales_data)}
@@ -296,3 +294,7 @@ class SaleInfoTable(Info):
         self.page_size = int(e.control.value)
         self.current_page = 1
         self._refresh_table()
+        
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))

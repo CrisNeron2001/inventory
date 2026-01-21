@@ -29,6 +29,8 @@ create_product= """
         brand_id INTEGER,
         sku VARCHAR(50) UNIQUE,
         is_available BOOLEAN,
+		category_name VARCHAR(100),
+		brand_name VARCHAR(100),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES category(category_id) ON DELETE SET NULL,
@@ -369,9 +371,11 @@ insert_product= """
         category_id, 
         brand_id, 
         sku,
-        is_available
+        is_available,
+		category_name,
+		brand_name
     )
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     RETURNING 
 		product_id, 
 		name, 
@@ -445,6 +449,8 @@ update_product= """
         brand_id = %s, 
         sku = %s,
         is_available = %s,
+		category_name = %s,
+		brand_name = %s,
         updated_at = CURRENT_TIMESTAMP
     WHERE product_id = %s
     RETURNING 

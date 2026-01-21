@@ -9,13 +9,17 @@ from core.models.dto.product_dto import ProductDTO
 from core.models.dto.category_dto import CategoryDTO
 from core.models.dto.brand_dto import BrandDTO
 from utils.helpers import autoincrement_id
+from gui.components.dialog.validate.success.success_dialog import success_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
+from gui.components.dialog.product.sku.sku_conflict_dialog import sku_conflict_dialog
 import flet as ft
 
 class AddProductFormController:
-    def __init__(self):
+    def __init__(self, page: ft.Page):
         self.product_service = ProductService()
         self.validator = FormProductValidator()
         self.form_data: dict = {}
+        self.page = page
         
         self.steps = [
             BasicDataStep(),
@@ -35,7 +39,7 @@ class AddProductFormController:
         self.update_step_indicators()
         self.update_content()
         self.update_progress()
-        self._update_nav_buttons()
+        self.update_nav_buttons()
         
     def update_step_indicators(self):
         self.step_indicators.controls.clear()
@@ -90,33 +94,43 @@ class AddProductFormController:
     def on_submit(self, form_data: dict):
         is_valid_basic, errors_basic = self.validator.validate_basic_data(form_data)
         is_valid_av, errors_av = self.validator.validate_availability_data(form_data)
-        all_errors: list[str] = []
+        errors: list[str] = []
         if not is_valid_basic:
-            all_errors += errors_basic
+            errors += errors_basic
         if not is_valid_av:
-            all_errors += errors_av
-        if all_errors:
-            log.error(f"Error de validación: {all_errors}")
-            self.show_error_dialog(all_errors)
+            errors += errors_av
+        if errors:
+            log.error(f"[AddProductFormController.on_submit] Error de validación: {errors}")
+            self.show_validate_error_dialog(errors)
             return
         
         cat_val = form_data.get('category') or form_data.get('category_id')
         brand_val = form_data.get('brand') or form_data.get('brand_id')
 
         category_dto = None
-        if cat_val not in (None, ""):
+        if isinstance(cat_val, dict):
+            category_id_raw = cat_val.get("category_id")
             try:
-                category_dto = CategoryDTO(category_id=int(cat_val), name="")
-            except Exception:
-                category_dto = None
+                category_id = int(category_id_raw) if category_id_raw not in (None, "") else 0
+            except (ValueError, TypeError):
+                category_id = 0
+            category_dto = CategoryDTO(
+                category_id=category_id,
+                name=cat_val.get("name", "")
+            )
 
         brand_dto = None
-        if brand_val not in (None, ""):
+        if isinstance(brand_val, dict):
+            brand_id_raw = brand_val.get("brand_id")
             try:
-                brand_dto = BrandDTO(brand_id=int(brand_val), name="")
-            except Exception:
-                brand_dto = None
-
+                brand_id = int(brand_id_raw) if brand_id_raw not in (None, "") else 0
+            except (ValueError, TypeError):
+                brand_id = 0
+            brand_dto = BrandDTO(
+                brand_id=brand_id,
+                name=brand_val.get("name", "")
+			)
+            
         is_av_val = form_data.get('is_available')
         is_available_bool = (
             is_av_val if isinstance(is_av_val, bool)
@@ -138,23 +152,27 @@ class AddProductFormController:
         product_added = self.product_service.create_product(product_dto)
 
         if product_added:
-            log.info("Producto creado")
-            self.show_success_dialog()
+            log.info(f"[AddProductFormController.on_submit] Producto creado: {getattr(product_added, 'name', '')}.")
+            self.show_success_dialog(f"Producto creado: {getattr(product_added, 'name', '')}.")
         else:
-            log.error("Error al crear producto")
-            self.show_error_dialog(["No se pudo crear el producto. Intente nuevamente."])
+            log.error("[AddProductFormController.on_submit] Error al crear producto (posible SKU duplicado).")
+            sku_val = form_data.get("sku", "")
+            if sku_val:
+                sku_conflict_dialog(self.page, sku_val)
+            else:
+                log.error("[AddProductFormController.on_submit] No se pudo crear el producto. Intente nuevamente.")
+                self.show_validate_error_dialog(["No se pudo crear el producto. Intente nuevamente."])
             
     def show_error_dialog(self, errors: list[str]):
         error_msg = "\n".join(errors)
-        log.error(f"Errores de validación: {error_msg}")
-        ft.AlertDialog(title=ft.Text(f"Errores de validación: {error_msg}"))
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))
         
-    def show_success_dialog(self):
-        log.info("Producto creado con éxito")
-        ft.AlertDialog(title=ft.Text(value="Producto creado con éxito"))
-        page = getattr(self.content_container, 'page', None) or getattr(self.step_indicators, 'page', None) or getattr(self.progress_bar, 'page', None)
-        if page:
-            page.go("/")
+    def show_validate_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg) 
+        
+    def show_success_dialog(self, msg: str):
+        success_dialog(self.page, msg, on_close=lambda: self.page.go("/"))
         
     def reset_form(self):
         self.form_data.clear()
@@ -183,7 +201,7 @@ class AddProductFormController:
     def prev_step(self, e):
         self.navigator.prev_step()
 
-    def _update_nav_buttons(self) -> None:
+    def update_nav_buttons(self) -> None:
         if self.btn_prev is not None:
             self.btn_prev.disabled = self.navigator.is_first_step()
             try:
@@ -246,7 +264,7 @@ class AddProductFormController:
         self.update_step_indicators()
         self.update_content()
         self.update_progress()
-        self._update_nav_buttons()
+        self.update_nav_buttons()
         
         return ft.Container(
 			content=main_content,

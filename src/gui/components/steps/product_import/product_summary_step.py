@@ -2,7 +2,7 @@ import flet as ft
 from typing import Optional, Dict, Any, List, Tuple
 
 class ProductSummaryStep:
-    def __init__(self, products, error=None, parent: Optional[Any] = None):
+    def __init__(self, products, error: str, parent: Optional[Any] = None):
         self.title = "Resumen de producto"
         self.products = products
         self.error = error
@@ -11,7 +11,6 @@ class ProductSummaryStep:
         self.parent = parent
 
     def create_controls(self, form_data: Optional[Dict[str, Any]] = None) -> List[ft.Control]:
-        # Referencia al padre para refrescar la vista al paginar
         if form_data and 'parent' in form_data:
             self.parent = form_data['parent']
         controls = [
@@ -61,7 +60,7 @@ class ProductSummaryStep:
             ("brand", "Marca")
         ]
         headers = [ft.DataColumn(ft.Text(col_es, size=12)) for _, col_es in columns]
-        # Paginación
+        
         start = self.current_page * self.page_size
         end = start + self.page_size
         page_items = items[start:end]
@@ -74,7 +73,7 @@ class ProductSummaryStep:
             row_cells = []
             for col, _ in columns:
                 val = data.get(col, '')
-                # Mostrar nombre si es objeto
+
                 if col == "category" and val:
                     if hasattr(val, 'name'):
                         val = val.name
@@ -89,7 +88,7 @@ class ProductSummaryStep:
                     val = "Sí" if val else "No"
                 row_cells.append(ft.DataCell(ft.Text(str(val), size=12)))
             rows.append(ft.DataRow(cells=row_cells))
-        # Scroll horizontal y vertical, tamaño compacto
+
         return ft.Container(
             content=ft.DataTable(
                 columns=headers,
@@ -101,8 +100,8 @@ class ProductSummaryStep:
                 vertical_lines=ft.BorderSide(1, ft.Colors.GREY_700),
             ),
             expand=False,
-            width=820,
-            height=340,
+            width=870,
+            height=400,
             padding=ft.Padding(0,0,0,0),
             border_radius=8,
             margin=ft.Margin(0,0,0,0),
@@ -111,10 +110,9 @@ class ProductSummaryStep:
     def change_page(self, delta):
         total_pages = max(1, (len(self.products) + self.page_size - 1) // self.page_size)
         self.current_page = max(0, min(self.current_page + delta, total_pages - 1))
-        # Refrescar la vista del padre si existe
+
         if self.parent:
             self.parent.update_content()
-            # Forzar actualización de la página para refrescar botones y controles
             if hasattr(self.parent, 'page') and self.parent.page:
                 self.parent.page.update()
 

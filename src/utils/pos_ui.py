@@ -11,16 +11,16 @@ class POSUI:
         self.controller = controller
 
     def create_form_layout(self) -> ft.Container:
-        return self.controller._create_form_layout_internal()
+        return self.controller.create_form_layout_internal()
 
     def create_steps_layout(self) -> ft.Container:
-        return self.controller._create_steps_layout_internal()
+        return self.controller.create_steps_layout_internal()
 
     def update_step_indicators(self) -> None:
-        return self.controller._update_step_indicators_internal()
+        return self.controller.update_step_indicators_internal()
 
     def update_content(self) -> None:
-        return self.controller._update_content_internal()
+        return self.controller.update_content_internal()
 
     def update_progress(self) -> None:
-        return self.controller._update_progress_internal()
+        return self.controller.update_progress_internal()

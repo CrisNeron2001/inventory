@@ -1,14 +1,15 @@
 from core.abstracts.info import Info
-from typing import Sequence, Optional, Callable, Any, cast
+from typing import Sequence, Optional, Any
 from dataclasses import is_dataclass, asdict
 import flet as ft
 from gui.components.dialog.category.delete_category_dialog import delete_category_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class CategoryInfoTable(Info):
-    def __init__(self, router_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, page: ft.Page):
         super().__init__("Categorias", "category_info_table")
         self.category_data: Sequence[dict] = []
-        self.router_callback = router_callback
+        self.page = page
         self.current_page: int = 1
         self.page_size: int = 5
         self._table_container: Optional[ft.Container] = None
@@ -162,23 +163,23 @@ class CategoryInfoTable(Info):
         )
         
     def on_edit(self, category_id: int):
-        if self.router_callback:
-            self.router_callback(f"/categories/edit/{category_id}")
+        if self.page:
+            self.page.go(f"/categories/edit/{category_id}")
 
     def on_delete(self, e: ft.ControlEvent, category_id: int):
         try:
             delete_category_dialog(
-                e.page, 
+                self.page, 
                 int(category_id), 
-                on_deleted=lambda: self.router_callback("/categories") if self.router_callback else None
+                on_deleted=lambda: self.page.go("/categories") if self.page else None
             )
         except Exception as ex:
-            cast(Any, e.page).snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), open=True)
-            e.page.update()
+            self.show_error_dialog([str(ex)])
+            self.page.update()
             
     def on_add_category(self, e):
-        if self.router_callback:
-            self.router_callback("/categories/create")
+        if self.page:
+            self.page.go("/categories/create")
 
     def get_data(self) -> dict:
         return {'categories': self.category_data, 'total': self._filtered_total()}
@@ -276,9 +277,10 @@ class CategoryInfoTable(Info):
             self._refresh_table()
 
     def _on_page_size_change(self, e: ft.ControlEvent):
-        try:
             self.page_size = int(e.control.value)
             self.current_page = 1
             self._refresh_table()
-        except Exception:
-            pass
+            
+    def show_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))
