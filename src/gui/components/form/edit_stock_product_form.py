@@ -1,8 +1,8 @@
 import flet as ft
 from core.abstracts.form import Form
 from gui.validators.product_form_validator import FormProductValidator
-from typing import Callable, Optional
-from utils.helpers import field_is_available
+from typing import Callable, Optional, cast
+from utils.helpers import field_is_available, increment_field, decrement_field
 
 class EditStockProductForm(Form):
 	def __init__(self, on_submit: Callable) -> None:
@@ -13,6 +13,7 @@ class EditStockProductForm(Form):
 		self.validator = FormProductValidator()
 		self.on_submit = on_submit
 		self.form_data: dict = {}
+		self.stock_row: Optional[ft.Row] = None
 
 	def create_controls(self, form_data: dict) -> list[ft.Control]:
 		self.field_name = ft.TextField(
@@ -23,7 +24,6 @@ class EditStockProductForm(Form):
 			border=ft.InputBorder.UNDERLINE,
 			border_color=ft.Colors.WHITE,
 		)
-
 		self.field_stock = ft.TextField(
 			label="Stock",
 			hint_text="Ingrese la stock",
@@ -34,13 +34,28 @@ class EditStockProductForm(Form):
 			border=ft.InputBorder.UNDERLINE,
 			border_color=ft.Colors.WHITE,
 		)
+		
+		self.stock_row = ft.Row(
+			controls=[
+				self.field_stock,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_stock), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_stock), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
 
 		self.field_is_available = field_is_available()
 		if self.field_is_available is not None:
 			self.field_is_available.value = form_data.get('is_available') or None
 
 		button_submit = ft.ElevatedButton(
-			text="Ingresar",
+			text="Guardar cambios",
 			style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.LIGHT_GREEN_600),
 			on_click=lambda e: self.on_submit(self.get_data())
 		)
@@ -51,24 +66,20 @@ class EditStockProductForm(Form):
 					ft.Row([
 						ft.Column([
 							self.field_name,
-							self.field_stock,
+							self.stock_row,
 							self.field_is_available,
+							button_submit,
 						], spacing=20),
 					], spacing=40, vertical_alignment=ft.CrossAxisAlignment.CENTER),
 					margin=20
 				),
 			]),
-			ft.Container(
-				content=button_submit,
-				alignment=ft.Alignment(0, 0),
-				margin=ft.Margin(0,20,0,0)
-			)
 		]
 	
 	def get_data(self) -> dict:
 		return {
 			'name': self.field_name.value if self.field_name is not None else '',
-			'stock': self.field_stock.value if self.field_stock is not None else '0',
+			'stock': self.field_stock.value if self.field_stock is not None else '1',
 			'is_available': self.field_is_available.value if self.field_is_available is not None else '',
 		}
 	

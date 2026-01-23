@@ -4,6 +4,7 @@ from services.cart_service import CartService
 from services.sale_service import SaleService
 from services.product_service import ProductService
 from services.session_service import SessionService
+from services.ticket_printer_service import TicketPrinterService, TicketPrinterConfig
 from core.models.dto.cart_dto import CartDTO
 from core.models.dto.cart_product_dto import CartProductDTO
 from core.models.dto.sale_dto import SaleDTO
@@ -21,6 +22,14 @@ class POSCartManager:
 		self.session: SessionService = controller.session
 		self.cart: List[dict] = controller.cart
 		self.page = page
+
+		self._ticket_printer = TicketPrinterService(
+			TicketPrinterConfig(
+				backend="usb",
+				vendor_id=None,
+				product_id=None,
+			)
+		)
 
 	def add_to_cart(self, product_id: int, qty: int) -> CartProductDTO | None:
 		if qty <= 0:
@@ -128,6 +137,17 @@ class POSCartManager:
 			notes=None,
 		)
 		created_sale = self.sale_service.create_sale(sale_dto)
+
+		if created_sale:
+			try:
+				self._ticket_printer.print_sale_ticket(
+					sale=created_sale,
+					cart_items=self.cart,
+					business_name="Mi Comercio",
+					business_rut=None,
+				)
+			except Exception as ex:
+				log.error(f"[POSCartManager.confirm_sale] Error al imprimir ticket: {ex}")
 
 		self.cart.clear()
 		self.controller.current_cart_id = None

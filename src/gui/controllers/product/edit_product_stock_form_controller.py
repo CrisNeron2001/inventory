@@ -1,5 +1,8 @@
 import flet as ft
 from services.product_service import ProductService
+from gui.components.form.edit_stock_product_form import EditStockProductForm
+from gui.components.dialog.validate.success.success_dialog import success_dialog
+from gui.components.dialog.validate.error.error_dialog import error_dialog
 
 class EditProductStockTableController:
     def __init__(self, page: ft.Page):
@@ -11,6 +14,8 @@ class EditProductStockTableController:
         self.products = []
         self.total_pages = 1
         self.load_products()
+        self.selected_product = None
+        self.product_form = EditStockProductForm(on_submit=self.on_form_submit)
 
     def load_products(self):
         all_products = self.product_service.get_all_products()
@@ -27,6 +32,25 @@ class EditProductStockTableController:
         self.load_products()
         self.refresh()
 
+    def on_form_submit(self, data: dict):
+        if not self.selected_product:
+            return
+        try:
+            self.selected_product.name = data.get("name", self.selected_product.name)
+            self.selected_product.stock = int(data.get("stock") or 0)
+            self.selected_product.is_available = data.get("is_available") == "Disponible"
+        except Exception as e:
+            self.show_validate_error_dialog([f"Hubo un error {str(e)}"])
+            return
+        self.product_service.update_product(self.selected_product)
+        self.show_success_dialog(f"Se ha actualizado correctamente el producto: {self.selected_product.name}")
+        self.load_products()
+        self.refresh()
+
+    def on_select_product(self, product):
+        self.selected_product = product
+        self.refresh()
+
     def on_update(self, product, field, value):
         if field == "stock":
             try:
@@ -35,9 +59,6 @@ class EditProductStockTableController:
                 return
         elif field == "is_available":
             product.is_available = value == "Disponible"
-        self.product_service.update_product(product)
-        self.load_products()
-        self.refresh()
 
     def on_prev(self, e):
         if self.n_page > 1:
@@ -66,38 +87,22 @@ class EditProductStockTableController:
         )
 
         def make_row(product):
-            stock_field = ft.TextField(
-                value=str(product.stock),
-                width=120,
-                text_align=ft.TextAlign.CENTER,
-                on_change=lambda e, p=product: self.on_update(p, 'stock', e.control.value)
-            )
-            avail_field = ft.Dropdown(
-                value="Disponible" if product.is_available else "No disponible",
-                options=[
-                    ft.dropdown.Option("Disponible"),
-                    ft.dropdown.Option("No disponible")
-                ],
-                width=160,
-                on_change=lambda e, p=product: self.on_update(p, 'is_available', e.control.value)
-            )
             return ft.DataRow(cells=[
-                ft.DataCell(ft.Text(product.name, width=320)),
-                ft.DataCell(stock_field),
-                ft.DataCell(avail_field),
+                ft.DataCell(
+                    ft.Text(product.name, width=320),
+                    on_tap=lambda e, p=product: self.on_select_product(p),
+                ),
             ])
 
         table = ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text("Nombre"), numeric=False, tooltip="Nombre del producto"),
-                ft.DataColumn(ft.Text("Stock"), numeric=True, tooltip="Cantidad en stock"),
-                ft.DataColumn(ft.Text("Disponibilidad"), numeric=False, tooltip="Estado de disponibilidad"),
             ],
             rows=[make_row(p) for p in self.products],
             column_spacing=32,
             data_row_min_height=48,
             heading_row_height=48,
-            width=700,
+            width=360,
         )
 
         paginator = ft.Row([
@@ -116,13 +121,39 @@ class EditProductStockTableController:
             ),
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
 
+        form_controls: list[ft.Control] = []
+        if self.selected_product is not None:
+            form_controls = self.product_form.create_controls({
+                "name": self.selected_product.name,
+                "stock": self.selected_product.stock,
+                "is_available": "Disponible" if self.selected_product.is_available else "No disponible",
+            })
+
         return ft.Column([
             search_field,
             ft.Divider(),
-            ft.Row([table], alignment=ft.MainAxisAlignment.CENTER),
-            paginator
+            ft.Row(
+                [
+                    ft.Container(table, expand=True),
+                    ft.VerticalDivider(width=1),
+                    ft.Container(
+                        ft.Column(form_controls, tight=True) if form_controls else ft.Container(),
+                        padding=ft.Padding(16, 0, 0, 0),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.START,
+            ),
+            ft.Divider(),
+            paginator,
         ], expand=False, tight=True)
 
     def create_layout(self):
         self.container = ft.Container(content=self.create_content(), padding=0, margin=0, expand=False)
         return self.container
+        
+    def show_validate_error_dialog(self, errors: list[str]):
+        error_msg = "\n".join(errors)
+        error_dialog(self.page, error_msg) 
+        
+    def show_success_dialog(self, msg: str):
+        success_dialog(self.page, msg)

@@ -82,6 +82,19 @@ create_cart_product = """
 	);
 """
 
+update_cart_product_quantity = """
+	UPDATE cart_product
+	SET quantity = %s
+	WHERE cart_id = %s AND product_id = %s
+	RETURNING cart_product_id, cart_id, product_id, quantity;
+"""
+
+select_cart_product_by_cart_and_product = """
+	SELECT cart_product_id, cart_id, product_id, quantity
+	FROM cart_product
+	WHERE cart_id = %s AND product_id = %s;
+"""
+
 create_sale = """
     CREATE TABLE IF NOT EXISTS sale (
         sale_id SERIAL PRIMARY KEY,
@@ -478,7 +491,7 @@ update_product= """
 """
 
 update_product_stock_by_name= """
-	UPDATE TABLE product
+	UPDATE product
 	SET
 		stock = %s,
 		is_available = %s,

@@ -5,7 +5,9 @@ from core.database.queries import (
 	select_all_carts,
 	select_cart_by_id,
 	insert_cart_product,
-	remove_product_from_cart
+	remove_product_from_cart,
+	update_cart_product_quantity,
+	select_cart_product_by_cart_and_product,
 )
 from core.database.queries import update_product_decrease_if_enough
 from core.models.mapper.cart_mapper import row_to_entity as c_r_t
@@ -67,11 +69,10 @@ class CartDAO:
 			return None
 
 	def create_cart_product_with_decrement(self, cart: CartProduct) -> Optional[CartProduct]:
-		params = (
-			getattr(cart, 'cart_id', None) if getattr(cart, 'cart_id', None) is not None else (cart.cart.cart_id if cart.cart else None),
-			getattr(cart, 'product_id', None) if getattr(cart, 'product_id', None) is not None else (cart.product.product_id if cart.product else None),
-			cart.quantity,
-		)
+		cart_id = getattr(cart, 'cart_id', None) if getattr(cart, 'cart_id', None) is not None else (cart.cart.cart_id if cart.cart else None)
+		product_id = getattr(cart, 'product_id', None) if getattr(cart, 'product_id', None) is not None else (cart.product.product_id if cart.product else None)
+		quantity = cart.quantity
+		params = (cart_id, product_id, quantity)
 
 		if not (self.cursor and self.db_conn):
 			log.error("[CartDAO.create_cart_product_with_decrement] Error al crear producto en carrito con decremento: sin conexión DB.")
@@ -79,25 +80,32 @@ class CartDAO:
 
 		try:
 			log.info(f"[CartDAO.create_cart_product_with_decrement] Creando/actualizando cart_product y decrementando stock en una transacción: params={params}.")
-			self.cursor.execute(insert_cart_product, params)
-			cp_row = self.cursor.fetchone()
+			# Primero verificamos si ya existe una línea para este cart_id + product_id
+			self.cursor.execute(select_cart_product_by_cart_and_product, (cart_id, product_id))
+			existing_row = self.cursor.fetchone()
+			if existing_row:
+				# Actualizar cantidad en cart_product
+				self.cursor.execute(update_cart_product_quantity, (quantity, cart_id, product_id))
+				cp_row = self.cursor.fetchone()
+			else:
+				# Insertar nueva línea
+				self.cursor.execute(insert_cart_product, params)
+				cp_row = self.cursor.fetchone()
 			if not cp_row:
-				log.error("[CartDAO.create_cart_product_with_decrement] No se obtuvo fila creada en insert_cart_product.")
+				log.error("[CartDAO.create_cart_product_with_decrement] No se obtuvo fila creada/actualizada en cart_product.")
 				self.db_conn.rollback()
 				return None
-			
-			dec_product_id = getattr(cart, 'product_id', None) if getattr(cart, 'product_id', None) is not None else (cart.product.product_id if cart.product else None)
-			dec_params = (cart.quantity, dec_product_id, cart.quantity)
+			dec_product_id = product_id
+			dec_params = (quantity, dec_product_id, quantity)
 			self.cursor.execute(update_product_decrease_if_enough, dec_params)
 			dec_row = self.cursor.fetchone()
 			if not dec_row:
 				self.db_conn.rollback()
 				log.warning(f"[CartDAO.create_cart_product_with_decrement] No hay stock suficiente para product_id={dec_product_id}.")
 				return None
-
 			self.db_conn.commit()
 			created = cp_r_t(list(cp_row))
-			log.info(f"[CartDAO.create_cart_product_with_decrement] Producto en carrito creado con decremento: {created}.")
+			log.info(f"[CartDAO.create_cart_product_with_decrement] Producto en carrito creado/actualizado con decremento: {created}.")
 			return created
 		except Exception as ex:
 			try:

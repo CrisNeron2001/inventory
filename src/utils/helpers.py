@@ -181,3 +181,20 @@ def autoincrement_sku() -> str:
         return f"{prefix}{num_str}"
     except Exception:
         return f"{prefix}001"
+
+def increment_field(field: ft.TextField, step: int):
+	try:
+		value = int(field.value or 0)
+	except ValueError:
+		value = 0
+	field.value = str(int(value + step))
+	field.update()
+
+def decrement_field(field: ft.TextField, step: int):
+	try:
+		value = int(field.value or 0)
+	except ValueError:
+		value = 0
+	new_value = max(0, value - step)
+	field.value = str(int(new_value))
+	field.update()

@@ -294,7 +294,10 @@ class POSController:
 		current = self.navigator.get_current_step()
 		valid, errors = current.validate()
 		if not valid:
-			log.error(f"[POSController.next_step_internal] Hubo un error inesperado:", ";".join(errors))
+			log.error(
+				"[POSController.next_step_internal] Hubo un error inesperado: %s",
+				";".join(errors),
+			)
 			self.show_validate_error_dialog([";".join(errors)])
 			return
 
@@ -318,10 +321,12 @@ class POSController:
 			if amount < total:
 				self.show_validate_error_dialog(["Monto insuficiente"])
 				return
+			change = amount - total
 			created = self.confirm_sale(payment_method='cash', payment_amount=amount)
 			if created:
 				log.info(f"[POSController.next_step_internal] Pago realizado. Venta registrada con éxito: {created}")
-				self.show_success_dialog("Pago realizado.")
+				msg = f"Pago realizado.\nTotal: ${total}\nPagado: ${amount}\nVuelto: ${change}"
+				self.show_success_dialog(msg)
 				self.navigator.reset()
 				self.cart.clear()
 				self.on_step_changed(self.navigator.current_step)

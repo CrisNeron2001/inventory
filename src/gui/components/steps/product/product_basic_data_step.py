@@ -1,7 +1,8 @@
 from core.abstracts.form import Form
 from gui.validators.product_form_validator import FormProductValidator
 from utils.constants import ALLOWED_FIELD
-from typing import Optional
+from typing import Optional, cast
+from utils.helpers import increment_field, decrement_field
 import flet as ft
 
 class BasicDataStep(Form):
@@ -12,6 +13,8 @@ class BasicDataStep(Form):
         self.field_stock: Optional[ft.TextField] = None
         self.field_price: Optional[ft.TextField] = None
         self.field_sku: Optional[ft.TextField] = None
+        self.stock_row: Optional[ft.Row] = None
+        self.price_row: Optional[ft.Row] = None
 
     def create_controls(self, form_data: dict) -> list[ft.Control]:            
         self.field_name = ft.TextField(
@@ -38,6 +41,34 @@ class BasicDataStep(Form):
 			input_filter=ft.InputFilter(allow=True, regex_string=r"^\d*\.?\d*$"),
 			value=str(form_data.get('price', 0))
 		)
+        self.stock_row = ft.Row(
+			controls=[
+				self.field_stock,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_stock), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_stock), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
+        self.price_row = ft.Row(
+			controls=[
+				self.field_price,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_price), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_price), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
         self.field_sku = ft.TextField(
 			label="Código",
 			hint_text="Ingrese el código",
@@ -47,8 +78,8 @@ class BasicDataStep(Form):
             ft.Text(self.title, size=18),
 			self.field_name,
 			self.field_desc,
-			self.field_stock,
-			self.field_price,
+			self.stock_row,
+			self.price_row,
 			self.field_sku
 		] 
 

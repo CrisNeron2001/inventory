@@ -1,6 +1,7 @@
 from core.abstracts.form import Form
 from core.models.dto.cart_product_dto import CartProductDTO
-from typing import Optional, List, Any
+from typing import Optional, List, Any, cast
+from utils.helpers import increment_field, decrement_field
 import flet as ft
 
 class ProductSelectionStep(Form):
@@ -11,6 +12,8 @@ class ProductSelectionStep(Form):
 		self.add_btn: Optional[ft.ElevatedButton] = None
 		self.added_container: Optional[ft.Column] = None
 		self.added_products: list[dict] = []
+		self.qty_row: Optional[ft.Row] = None
+		self.stock_label: Optional[ft.Text] = None
 
 		self._products: List[Any] = []
 		self._products_by_id: dict = {}
@@ -65,6 +68,13 @@ class ProductSelectionStep(Form):
 					qty = getattr(cp, 'quantity', None)
 					prod = getattr(cp, 'product', None)
 
+				pid_int: Optional[int] = None
+				if pid is not None:
+					try:
+						pid_int = int(str(pid))
+					except Exception:
+						pid_int = None
+
 				pname = None
 				pprice = None
 				if prod:
@@ -75,27 +85,31 @@ class ProductSelectionStep(Form):
 						pname = getattr(prod, 'name', None)
 						pprice = getattr(prod, 'price', None)
 				else:
-					p = self._products_by_id.get(pid)
+					p = self._products_by_id.get(pid_int)
 					if p:
 						pname = getattr(p, 'name', None)
 						pprice = getattr(p, 'price', None)
 
 				label = f"{pname} - ${pprice}" if pname is not None else None
-				item = {"product_id": pid, "quantity": qty, "label": label}
+				item = {"product_id": pid_int, "quantity": qty, "label": label}
 				self.added_products.append(item)
-				idx = len(self.added_products) - 1
 				remove_btn = ft.IconButton(
 					icon=ft.Icons.DELETE, 
 					tooltip="Quitar", 
-					on_click=lambda ev, 
-					i=idx: self._remove_item(i)
+					on_click=lambda ev, pid=pid_int: self._remove_by_product_id(pid) if pid is not None else None
+				)
+
+				clickable = ft.GestureDetector(
+					mouse_cursor=ft.MouseCursor.CLICK,
+					content=ft.Text(
+						f"{item.get('label') or f'Producto {pid_int}'} x{qty}", 
+						expand=True,
+					),
+					on_tap=lambda ev, pid=pid_int: self._select_by_product_id(pid) if pid is not None else None,
 				)
 				row = ft.Row(
 					[
-						ft.Text(
-							f"{item.get('label') or f'Producto {pid}'} x{qty}", 
-							expand=True
-						), 
+						clickable,
 						remove_btn
 					], 
 					alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
@@ -114,8 +128,29 @@ class ProductSelectionStep(Form):
 		self._cart_id = form_data.get('cart_id')
 
 		options = [ft.dropdown.Option(key=str(p.product_id), text=f"{p.name} - ${p.price}") for p in products]
-		self.ddl = ft.Dropdown(options=options, width=360, hint_text="Selecciona producto", label="Producto")
+		self.ddl = ft.Dropdown(
+			options=options,
+			width=360,
+			hint_text="Selecciona producto",
+			label="Producto",
+			on_change=self._on_product_change,
+		)
 		self.qty = ft.TextField(value="1", width=120, label="Cantidad")
+		self.qty_row = ft.Row(
+			controls=[
+				self.qty,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.qty), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.qty), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
+		self.stock_label = ft.Text("", size=12, color=ft.Colors.GREY_400)
 		self.add_btn = ft.ElevatedButton(text="Agregar", on_click=self._on_add_click)
 
 		self.added_container = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -123,7 +158,7 @@ class ProductSelectionStep(Form):
 		if getattr(self, '_cart_service', None) and getattr(self, '_cart_id', None):
 			self._reload_lines()
 
-		left = ft.Column([self.ddl, self.qty, self.add_btn], spacing=8)
+		left = ft.Column([self.ddl, self.stock_label, self.qty_row, self.add_btn], spacing=8)
 		right = ft.Container(
 			content=ft.Column([
 				ft.Text("Productos agregados", weight=ft.FontWeight.W_600),
@@ -143,6 +178,38 @@ class ProductSelectionStep(Form):
 			"cart_items": list(self.added_products),
 		}
 
+	def _on_product_change(self, e: ft.ControlEvent) -> None:
+		if not self.ddl or not self.ddl.value:
+			if self.stock_label is not None:
+				self.stock_label.value = ""
+				self.stock_label.update()
+			return
+
+		try:
+			pid = int(self.ddl.value)
+		except Exception:
+			pid = None
+
+		stock_text = ""
+		if pid is not None:
+			prod = self._products_by_id.get(pid)
+			if prod is not None:
+				stock_val = None
+				for attr in ("stock", "quantity", "available", "available_quantity"):
+					if hasattr(prod, attr):
+						stock_val = getattr(prod, attr)
+						break
+				if stock_val is not None:
+					try:
+						stock_int = int(stock_val)
+						stock_text = f"Disponible: {stock_int}"
+					except Exception:
+						stock_text = f"Disponible: {stock_val}"
+
+		if self.stock_label is not None:
+			self.stock_label.value = stock_text
+			self.stock_label.update()
+
 	def validate(self) -> tuple[bool, list[str]]:
 		errors: list[str] = []
 		if not self.added_products:
@@ -151,7 +218,7 @@ class ProductSelectionStep(Form):
 
 	def reset(self) -> None:
 		self.ddl = None
-		self.qty = None
+		self.qty_row = None
 		self.added_products = []
 		if self.added_container is not None:
 			self.added_container.controls.clear()
@@ -161,8 +228,11 @@ class ProductSelectionStep(Form):
 		if not self.ddl or not self.ddl.value:
 			return
 		pid = int(self.ddl.value)
-		qty = int(str(self.qty.value)) if self.qty and self.qty.value else 0
+		qty = int(self.qty.value) if self.qty and self.qty.value else 0
 		if qty <= 0:
+			idx_to_remove = next((i for i, it in enumerate(self.added_products) if it.get("product_id") == pid), None)
+			if idx_to_remove is not None:
+				self._remove_item(idx_to_remove)
 			return
 
 		text = None
@@ -198,26 +268,66 @@ class ProductSelectionStep(Form):
 		if pname:
 			item['label'] = f"{pname} - ${pprice}"
 
-		self.added_products.append(item)
+		existing_index = next((i for i, it in enumerate(self.added_products) if it.get("product_id") == pid), None)
+		if existing_index is not None:
+			self.added_products[existing_index]["quantity"] = qty
+		else:
+			self.added_products.append(item)
 
-		idx = len(self.added_products) - 1
-		remove_btn = ft.IconButton(
-			icon=ft.Icons.DELETE, 
-			tooltip="Quitar", 
-			on_click=lambda ev, 
-			i=idx: self._remove_item(i)
-		)
-		row = ft.Row(
-			[
-				ft.Text(
-					f"{item.get('label')} x{qty}", 
-					expand=True
-				), remove_btn
-			], 
-			alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+		if getattr(self, '_cart_service', None) and getattr(self, '_cart_id', None):
+			self._reload_lines()
+			return
+
 		if self.added_container is not None:
-			self.added_container.controls.append(row)
+			self.added_container.controls.clear()
+			for it in self.added_products:
+				ppid = it.get("product_id")
+				qqty = it.get("quantity")
+				label = it.get("label")
+				remove_btn = ft.IconButton(
+					icon=ft.Icons.DELETE,
+					tooltip="Quitar",
+					on_click=lambda ev, pid=ppid: self._remove_by_product_id(int(pid)) if pid is not None else None
+				)
+				clickable = ft.GestureDetector(
+					mouse_cursor=ft.MouseCursor.CLICK,
+					content=ft.Text(
+						f"{label} x{qqty}",
+						expand=True,
+					),
+					on_tap=lambda ev, pid=ppid: self._select_by_product_id(int(pid)) if pid is not None else None,
+				)
+				row = ft.Row(
+					[
+						clickable, remove_btn
+					],
+					alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+				)
+				self.added_container.controls.append(row)
 			self.added_container.update()
+
+	def _select_item(self, index: int) -> None:
+		if index < 0 or index >= len(self.added_products):
+			return
+		item_sel = self.added_products[index]
+		if self.ddl is not None:
+			self.ddl.value = str(item_sel.get("product_id"))
+			self.ddl.update()
+		if self.qty is not None:
+			self.qty.value = str(item_sel.get("quantity") or 1)
+			self.qty.update()
+
+	def _select_by_product_id(self, product_id: int) -> None:
+		for idx, it in enumerate(self.added_products):
+			if it.get("product_id") == product_id:
+				self._select_item(idx)
+				break
+
+	def _remove_by_product_id(self, product_id: int) -> None:
+		for idx, it in enumerate(self.added_products):
+			if it.get("product_id") == product_id:
+				self._remove_item(idx)
+				break
 
 	def _remove_item(self, index: int) -> None:
 		if index < 0 or index >= len(self.added_products):

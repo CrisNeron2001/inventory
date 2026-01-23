@@ -79,9 +79,8 @@ class ProductDAO:
         if self.cursor and self.db_conn:
             log.info("[ProductDAO.edit_product] Editando un producto.")
             self.cursor.execute(
-				update_product,
-				(
-                    product.product_id,
+                update_product,
+                (
                     product.name,
                     product.description,
                     product.stock,
@@ -91,9 +90,10 @@ class ProductDAO:
                     product.sku,
                     product.is_available,
                     (product.category.name if product.category else None),
-                    (product.brand.name if product.brand else None)
-				)) 
-            self.db_conn.commit() 
+                    (product.brand.name if product.brand else None),
+                    product.product_id,
+                ))
+            self.db_conn.commit()
             row: Any = self.cursor.fetchone()
             product_updated = row_to_entity(row=list(row))
             log.info(f"[ProductDAO.edit_product] Producto editado: {product_updated}.")

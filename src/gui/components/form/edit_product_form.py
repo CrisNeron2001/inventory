@@ -1,8 +1,15 @@
 import flet as ft
 from core.abstracts.form import Form
-from utils.helpers import field_category, field_brand, field_is_available, selected_option_text
+from utils.helpers import (
+	field_category, 
+	field_brand, 
+	field_is_available, 
+	selected_option_text, 
+	increment_field, 
+	decrement_field
+)
 from gui.validators.product_form_validator import FormProductValidator
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 from services.session_service import SessionService
 
 
@@ -68,6 +75,36 @@ class EditProductForm(Form):
 			border_color=ft.Colors.WHITE,
 		)
 
+		self.stock_row = ft.Row(
+			controls=[
+				self.field_stock,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_stock), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_stock), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
+
+		self.price_row = ft.Row(
+			controls=[
+				self.field_price,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_price), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_price), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
+
 		self.field_sku = ft.TextField(
 			label="Código",
 			hint_text="Ingrese el código",
@@ -111,13 +148,13 @@ class EditProductForm(Form):
 					ft.Row([
 						ft.Column([
 							self.field_name,
-							self.field_stock,
+							self.stock_row,
 							self.field_sku,
 							self.field_category,
 						], alignment=ft.MainAxisAlignment.START, spacing=20),
 						ft.Column([
 							self.field_desc,
-							self.field_price,
+							self.price_row,
 							self.field_is_available,
 							self.field_brand,
 						], spacing=20),

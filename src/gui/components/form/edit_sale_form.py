@@ -1,6 +1,7 @@
 import flet as ft
 from core.abstracts.form import Form
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
+from utils.helpers import increment_field, decrement_field
 
 class EditSaleForm(Form):
     def __init__(self, on_submit: Callable, products_options: Optional[list] = None):
@@ -11,6 +12,8 @@ class EditSaleForm(Form):
         self.field_unit_price: Optional[ft.TextField] = None
         self.field_notes: Optional[ft.TextField] = None
         self.products_options = products_options or []
+        self.quantity_row: Optional[ft.Row] = None
+        self.unit_price_row: Optional[ft.Row] = None
 
     def create_controls(self, form_data: dict) -> list[ft.Control]:
         options = self.products_options
@@ -24,12 +27,40 @@ class EditSaleForm(Form):
         self.field_quantity = ft.TextField(label="Cantidad", value=str(form_data.get("quantity", 1)), keyboard_type=ft.KeyboardType.NUMBER)
         self.field_unit_price = ft.TextField(label="Precio unit.", value=str(form_data.get("unit_price", 0)), keyboard_type=ft.KeyboardType.NUMBER)
         self.field_notes = ft.TextField(label="Notas", value=form_data.get("notes", ""))
+        self.quantity_row = ft.Row(
+			controls=[
+				self.field_quantity,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_quantity), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_quantity), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
+        self.unit_price_row = ft.Row(
+			controls=[
+				self.field_unit_price,
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_UP,
+					on_click=lambda e: increment_field(cast(ft.TextField, self.field_unit_price), 1)
+				),
+				ft.IconButton(
+					icon=ft.Icons.ARROW_DROP_DOWN,
+					on_click=lambda e: decrement_field(cast(ft.TextField, self.field_unit_price), 1)
+				),
+			],
+			vertical_alignment=ft.CrossAxisAlignment.END
+		)
 
         submit_btn = ft.ElevatedButton(text="Guardar", on_click=lambda e: self.on_submit(self.get_data()))
 
         return [
             ft.Row([
-                ft.Column([self.field_product, self.field_quantity, self.field_unit_price, self.field_notes], spacing=12)
+                ft.Column([self.field_product, self.quantity_row, self.unit_price_row, self.field_notes], spacing=12)
             ]),
             ft.Container(content=submit_btn, alignment=ft.Alignment(0, 0), margin=ft.Margin(0, 20, 0, 0))
         ]
@@ -52,9 +83,9 @@ class EditSaleForm(Form):
                 quantity = 0
 
         unit_price = 0
-        if self.field_unit_price and self.field_unit_price.value is not None:
+        if self.unit_price_row and self.unit_price_row is not None:
             try:
-                up_str = str(self.field_unit_price.value).strip()
+                up_str = str(self.unit_price_row).strip()
                 if up_str != '':
                     unit_price = int(up_str)
             except (TypeError, ValueError):
