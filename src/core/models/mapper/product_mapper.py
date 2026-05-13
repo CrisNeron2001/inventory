@@ -3,9 +3,13 @@ from core.models.dto.product_dto import ProductDTO
 from core.models.dto.category_dto import CategoryDTO
 from core.models.dto.brand_dto import BrandDTO
 from core.models.entity.product_entity import Product
-from core.models.mapper.category_mapper import category_dto_to_entity, category_entity_to_dto
+from core.models.mapper.category_mapper import (
+    category_dto_to_entity,
+    category_entity_to_dto,
+)
 from core.models.mapper.brand_mapper import brand_dto_to_entity, brand_entity_to_dto
 from typing import Any, List
+
 
 def dto_to_entity(dto: ProductDTO) -> Product:
     return Product(
@@ -15,12 +19,12 @@ def dto_to_entity(dto: ProductDTO) -> Product:
         stock=dto.stock,
         price=dto.price,
         sku=dto.sku,
-        is_available=dto.is_available,
         category=category_dto_to_entity(dto.category) if dto.category else None,
         brand=brand_dto_to_entity(dto.brand) if dto.brand else None,
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
+
 
 def entity_to_dto(entity: Product) -> ProductDTO:
     if entity.category and isinstance(entity.category, str):
@@ -40,10 +44,10 @@ def entity_to_dto(entity: Product) -> ProductDTO:
         stock=entity.stock,
         price=entity.price,
         sku=entity.sku,
-        is_available=entity.is_available,
         category=cat_dto,
-        brand=br_dto
+        brand=br_dto,
     )
+
 
 def row_to_entity(row: List[Any]) -> Product:
     return Product(
@@ -53,15 +57,17 @@ def row_to_entity(row: List[Any]) -> Product:
         stock=row[3],
         price=row[4],
         sku=row[5],
-        is_available=row[6],
-        created_at=row[7],
-        updated_at=row[8],
-        category=row[9],
-        brand=row[10]
+        created_at=row[6],
+        updated_at=row[7],
+        category=row[8],
+        brand=row[9],
     )
+
 
 def product_dto_to_entity(dto: ProductDTO) -> Product:
     return dto_to_entity(dto)
 
+
 def product_entity_to_dto(entity: Product) -> ProductDTO:
     return entity_to_dto(entity)
+

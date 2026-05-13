@@ -1,6 +1,6 @@
-#============(CREACION DE TABLA)=============>
+# ============(CREACION DE TABLA)=============>
 
-create_category= """
+create_category = """
 	CREATE TABLE IF NOT EXISTS category (
 		category_id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL UNIQUE,
@@ -9,7 +9,7 @@ create_category= """
 	);
 """
 
-create_brand= """
+create_brand = """
 	CREATE TABLE IF NOT EXISTS brand (
 		brand_id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL UNIQUE,
@@ -18,7 +18,7 @@ create_brand= """
 	); 
 """
 
-create_product= """
+create_product = """
 	CREATE TABLE IF NOT EXISTS product (
 		product_id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
@@ -28,7 +28,6 @@ create_product= """
         category_id INTEGER,
         brand_id INTEGER,
         sku VARCHAR(50) UNIQUE,
-        is_available BOOLEAN,
 		category_name VARCHAR(100),
 		brand_name VARCHAR(100),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -41,25 +40,15 @@ create_product= """
 create_user_inv = """
 	CREATE TABLE IF NOT EXISTS user_inv (
 		user_inv_id SERIAL PRIMARY KEY,
-		role_inv_id INTEGER,
 		first_name VARCHAR(35) NOT NULL,
+        middle_name VARCHAR(35) NOT NULL,
 		last_name VARCHAR(35) NULL,
-		username VARCHAR(35) NOT NULL UNIQUE,
+		rut VARCHAR(35) NOT NULL UNIQUE,
 		password VARCHAR(255) NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (role_inv_id) REFERENCES role_inv(role_inv_id) ON DELETE SET NULL
-	);
-"""
-
-create_role_inv = """
-	CREATE TABLE IF NOT EXISTS role_inv(
-		role_inv_id SERIAL PRIMARY KEY,
-		name VARCHAR(25) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
-""" 
+"""
 
 create_cart = """
 	CREATE TABLE IF NOT EXISTS cart(
@@ -75,7 +64,7 @@ create_cart_product = """
 	CREATE TABLE IF NOT EXISTS cart_product(
 		cart_product_id SERIAL PRIMARY KEY,
 		cart_id INTEGER NOT NULL,
-		product_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
 		quantity INTEGER NOT NULL,
 		FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE,
 		FOREIGN KEY (product_id) REFERENCES product(product_id) ON DELETE CASCADE
@@ -107,168 +96,59 @@ create_sale = """
     );
 """
 
-#==================(CREACION DE TABLAS PERMISOS)====================>
-
-create_permission = """
-	CREATE TABLE IF NOT EXISTS permission (
-		permission_key VARCHAR(100) PRIMARY KEY,
-		description TEXT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-"""
-
-create_role_permission = """
-	CREATE TABLE IF NOT EXISTS role_permission (
-		role_inv_id INTEGER NOT NULL,
-		permission_key VARCHAR(100) NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (role_inv_id, permission_key),
-		FOREIGN KEY (role_inv_id) REFERENCES role_inv(role_inv_id) ON DELETE CASCADE,
-		FOREIGN KEY (permission_key) REFERENCES permission(permission_key) ON DELETE CASCADE
-	);
-"""
-
-#==================(CRUD PERMISSION / ROLE_PERMISSION)====================>
-
-insert_permission = """
-	INSERT INTO permission (permission_key, description)
-	VALUES (%s, %s)
-	ON CONFLICT (permission_key) DO NOTHING;
-"""
-
-insert_role_permission = """
-	INSERT INTO role_permission (role_inv_id, permission_key)
-	VALUES (%s, %s)
-	ON CONFLICT (role_inv_id, permission_key) DO NOTHING;
-"""
-
-select_permission_by_key = """
-	SELECT permission_key, description, created_at
-	FROM permission
-	WHERE permission_key = %s;
-"""
-
-select_all_permissions = """
-	SELECT permission_key, description, created_at
-	FROM permission
-	ORDER BY permission_key;
-"""
-
-select_permissions_by_role = """
-	SELECT rp.permission_key
-	FROM role_permission rp
-	WHERE rp.role_inv_id = %s;
-"""
-
-delete_role_permission = """
-	DELETE FROM role_permission
-	WHERE role_inv_id = %s AND permission_key = %s;
-"""
-
-delete_permission = """
-	DELETE FROM permission
-	WHERE permission_key = %s;
-"""
-
-#==================(CRUD ROLE_INV)====================>
-
-insert_role_inv = """
-	INSERT INTO role_inv (name)
-	VALUES (%s)
-	RETURNING role_inv_id, name, created_at, updated_at;
-"""
-
-select_role_by_id = """
-	SELECT role_inv_id, name, created_at, updated_at
-	FROM role_inv
-	WHERE role_inv_id = %s;
-"""
-
-select_all_roles = """
-	SELECT role_inv_id, name, created_at, updated_at
-	FROM role_inv
-	ORDER BY name;
-"""
-
-update_role_inv = """
-	UPDATE role_inv
-	SET name = %s, updated_at = CURRENT_TIMESTAMP
-	WHERE role_inv_id = %s
-	RETURNING role_inv_id, name, created_at, updated_at;
-"""
-
-delete_role_inv = """
-	DELETE FROM role_inv
-	WHERE role_inv_id = %s;
-"""
-
-#==================(CRUD USER_INV)====================>
+# ==================(CRUD USER_INV)====================>
 
 insert_user_inv = """
-	INSERT INTO user_inv (role_inv_id, first_name, last_name, username, password)
+	INSERT INTO user_inv (first_name, middle_name, last_name, rut, password)
 	VALUES (%s, %s, %s, %s, %s)
-	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, created_at, updated_at;
+	RETURNING user_inv_id, first_name, middle_name, last_name, rut, created_at, updated_at;
 """
 
 select_user_by_id = """
 	SELECT 
 		u.user_inv_id, 
-		u.role_inv_id, 
 		u.first_name, 
+        u.middle_name,
 		u.last_name, 
-		u.username, 
+		u.rut, 
 		u.created_at, 
-		u.updated_at,
-		r.name as role_name
+		u.updated_at
 	FROM user_inv u
-	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
 	WHERE u.user_inv_id = %s;
 """
 
-select_user_by_username = """
+select_user_by_rut = """
 	SELECT 
 		u.user_inv_id, 
-		u.role_inv_id, 
 		u.first_name, 
+        u.middle_name,
 		u.last_name, 
-		u.username, 
+		u.rut, 
 		u.password, 
 		u.created_at, 
-		u.updated_at,
-		r.name as role_name
+		u.updated_at
 	FROM user_inv u
-	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
-	WHERE u.username = %s;
+	WHERE u.rut = %s;
 """
 
 select_all_users = """
 	SELECT 
 		u.user_inv_id,	 
-		u.role_inv_id, 
 		u.first_name, 
+        u.middle_name,
 		u.last_name, 
-		u.username, 
+		u.rut, 
 		u.created_at, 
-		u.updated_at,
-		r.name as role_name
+		u.updated_at
 	FROM user_inv u
-	LEFT JOIN role_inv r ON u.role_inv_id = r.role_inv_id
-	ORDER BY u.username;
+	ORDER BY u.rut;
 """
 
 update_user_inv = """
 	UPDATE user_inv
-	SET role_inv_id = %s, first_name = %s, last_name = %s, username = %s, password = %s, updated_at = CURRENT_TIMESTAMP
+	SET first_name = %s, middle_name = %s, last_name = %s, rut = %s, password = %s, updated_at = CURRENT_TIMESTAMP
 	WHERE user_inv_id = %s
-	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, created_at, updated_at;
-"""
-
-update_user_role = """
-	UPDATE user_inv
-	SET role_inv_id = %s, updated_at = CURRENT_TIMESTAMP
-	WHERE user_inv_id = %s
-	RETURNING user_inv_id, role_inv_id, first_name, last_name, username, password, created_at, updated_at,
-			  (SELECT r.name FROM role_inv r WHERE r.role_inv_id = user_inv.role_inv_id) AS role_name;
+	RETURNING user_inv_id, first_name, middle_name, last_name, rut, created_at, updated_at;
 """
 
 delete_user_inv = """
@@ -276,9 +156,9 @@ delete_user_inv = """
 	WHERE user_inv_id = %s;
 """
 
-#=============(CREACION DE INDICES)====================>
+# =============(CREACION DE INDICES)====================>
 
-create_indexes= """
+create_indexes = """
 	CREATE INDEX IF NOT EXISTS idx_product_category ON product(category_id);
 	CREATE INDEX IF NOT EXISTS idx_product_brand ON product(brand_id);
 	CREATE INDEX IF NOT EXISTS idx_product_name ON product(name);
@@ -287,64 +167,61 @@ create_indexes= """
 	CREATE INDEX IF NOT EXISTS idx_sale_date ON sale(sale_date);
 	CREATE INDEX IF NOT EXISTS idx_category_name ON category(name);
 	CREATE INDEX IF NOT EXISTS idx_brand_name ON brand(name);
-	CREATE INDEX IF NOT EXISTS idx_userinv_username ON user_inv(username);
-	CREATE INDEX IF NOT EXISTS idx_roleinv_name ON role_inv(name);
-	CREATE INDEX IF NOT EXISTS idx_permission_key ON permission(permission_key);
-	CREATE INDEX IF NOT EXISTS idx_rolepermission_role ON role_permission(role_inv_id);
+	CREATE INDEX IF NOT EXISTS idx_userinv_rut ON user_inv(rut);
 	CREATE INDEX IF NOT EXISTS idx_cart_user_inv ON cart(user_inv_id);
 """
 
-#==================(COMPROBAR TABLAS)==================>
+# ==================(COMPROBAR TABLAS)==================>
 
 checks_tables = """
 	SELECT table_name 
 	FROM information_schema.tables
 	WHERE table_schema='public'
-		AND table_name IN ('category', 'brand', 'product', 'sale', 'user_inv', 'role_inv', 'permission', 'role_permission', 'cart', 'cart_product');
+		AND table_name IN ('category', 'brand', 'product', 'sale', 'user_inv', 'cart', 'cart_product');
 """
 
-#==================(CRUD CATEGORIA)====================>
+# ==================(CRUD CATEGORIA)====================>
 
-insert_category= """
+insert_category = """
 	INSERT INTO category (name)
 	VALUES (%s)
 	RETURNING category_id, name, created_at, updated_at;
 """
 
-select_category_name_by_id= """
+select_category_name_by_id = """
 	SELECT category_id, name, created_at, updated_at
 	FROM category
 	WHERE category_id = %s;
 
 """
 
-select_all_categories_names= """
+select_all_categories_names = """
 	SELECT category_id, name, created_at, updated_at
 	FROM category
 	ORDER BY name;
 """
 
-update_category= """
+update_category = """
 	UPDATE category
 	SET name = %s, updated_at = CURRENT_TIMESTAMP
 	WHERE category_id = %s
 	RETURNING category_id, name, created_at, updated_at;
 """
 
-delete_category= """
+delete_category = """
 	DELETE FROM category
 	WHERE category_id = %s;
 """
 
-#===================(CRUD MARCA)=======================>
+# ===================(CRUD MARCA)=======================>
 
-insert_brand= """
+insert_brand = """
 	INSERT INTO brand (name)
 	VALUES (%s)
 	RETURNING brand_id, name, created_at, updated_at;
 """
 
-select_brand_name_by_id= """
+select_brand_name_by_id = """
 	SELECT brand_id, name, created_at, updated_at
 	FROM brand
 	WHERE brand_id = %s;
@@ -354,28 +231,28 @@ select_name_brand = """
 	FROM brand;
 """
 
-select_all_brands_names= """
+select_all_brands_names = """
 	SELECT brand_id, name, created_at, updated_at
 	FROM brand
 	ORDER BY name;
 """
 
 
-update_brand= """
+update_brand = """
 	UPDATE brand
 	SET name = %s, updated_at = CURRENT_TIMESTAMP
 	WHERE brand_id = %s
 	RETURNING brand_id, name, created_at, updated_at;
 """
 
-delete_brand= """
+delete_brand = """
 	DELETE FROM brand
 	WHERE brand_id = %s;
 """
 
-#==================(CRUD PRODUCTO)=====================>
+# ==================(CRUD PRODUCTO)=====================>
 
-insert_product= """
+insert_product = """
     INSERT INTO product (
         name, 
         description, 
@@ -384,11 +261,10 @@ insert_product= """
         category_id, 
         brand_id, 
         sku,
-        is_available,
 		category_name,
 		brand_name
     )
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     RETURNING 
 		product_id, 
 		name, 
@@ -396,7 +272,6 @@ insert_product= """
 		stock, 
 		price, 
 		sku,
-		is_available,
 		created_at,
 		updated_at,
 		(
@@ -413,7 +288,7 @@ insert_product= """
 		) AS brand_name;
 """
 
-select_product_by_id= """
+select_product_by_id = """
 	SELECT        
 		p.product_id,
 		p.name, 
@@ -421,7 +296,6 @@ select_product_by_id= """
 		p.stock, 
 		p.price, 
 		p.sku,
-		p.is_available,
 		p.created_at, 
 		p.updated_at,
 		c.name as category_name,
@@ -432,7 +306,7 @@ select_product_by_id= """
 	WHERE p.product_id = %s;
 """
 
-select_all_products= """
+select_all_products = """
 	SELECT 
 		p.product_id,
 		p.name,
@@ -440,7 +314,6 @@ select_all_products= """
 		p.stock, 
 		p.price, 
 		p.sku,
-		p.is_available,
 		p.created_at, 
 		p.updated_at,
 		c.name as category_name,
@@ -451,7 +324,7 @@ select_all_products= """
 	ORDER BY p.name;
 """
 
-update_product= """
+update_product = """
     UPDATE product
     SET 
 		name = %s, 
@@ -461,7 +334,6 @@ update_product= """
         category_id = %s, 
         brand_id = %s, 
         sku = %s,
-        is_available = %s,
 		category_name = %s,
 		brand_name = %s,
         updated_at = CURRENT_TIMESTAMP
@@ -473,9 +345,8 @@ update_product= """
 		stock, 
 		price, 
 		sku,
-		is_available,
 		created_at,
-		updated_at,
+		updated_at
 		(
 			SELECT 
 				c.name 
@@ -490,25 +361,24 @@ update_product= """
 		) AS brand_name;
 """
 
-update_product_stock_by_name= """
+update_product_stock_by_name = """
 	UPDATE product
 	SET
 		stock = %s,
-		is_available = %s,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE name = %s;
 """
 
-delete_product= """
+delete_product = """
 	DELETE FROM product
 	WHERE product_id = %s;
 """
 
-#==================(CRUD VENTA)====================>
+# ==================(CRUD VENTA)====================>
 
 insert_sale = """
-	INSERT INTO sale (cart_id, notes)
-	VALUES (%s, %s)
+	INSERT INTO sale (cart_id)
+	VALUES (%s)
 	RETURNING sale_id, cart_id, sale_date, notes, created_at, updated_at;
 """
 
@@ -516,8 +386,8 @@ select_sale_by_id = """
 	SELECT 
 		s.sale_id, 
 		s.cart_id,
-		s.sale_date, 
-		s.notes, 
+        s.sale_date, 
+        s.notes,
 		s.created_at, 
 		s.updated_at,
 		p.name AS product_name,
@@ -525,8 +395,8 @@ select_sale_by_id = """
 		p.price AS unit_price,
 		(cp.quantity * p.price) AS total_price
 	FROM sale s
-	INNER JOIN cart_product cp ON s.cart_id = cp.cart_id
-	INNER JOIN product p ON cp.product_id = p.product_id
+	LEFT JOIN cart_product cp ON s.cart_id = cp.cart_id
+	LEFT JOIN product p ON cp.product_id = p.product_id
 	WHERE s.sale_id = %s
 	ORDER BY p.product_id;
 """
@@ -535,8 +405,8 @@ select_all_sales = """
 	SELECT 
 		s.sale_id, 
 		s.cart_id,
-		s.sale_date, 
-		s.notes, 
+		s.sale_date,
+        s.notes,
 		s.created_at, 
 		s.updated_at,
 		p.name AS product_name,
@@ -544,8 +414,8 @@ select_all_sales = """
 		p.price AS unit_price,
 		(cp.quantity * p.price) AS total_price
 	FROM sale s
-	INNER JOIN cart_product cp ON s.cart_id = cp.cart_id
-	INNER JOIN product p ON cp.product_id = p.product_id
+	LEFT JOIN cart_product cp ON s.cart_id = cp.cart_id
+	LEFT JOIN product p ON cp.product_id = p.product_id
 	ORDER BY s.sale_date DESC, s.sale_id DESC, p.product_id;
 """
 
@@ -562,7 +432,7 @@ update_sale = """
 	RETURNING sale_id, cart_id, sale_date, notes, created_at, updated_at;
 """
 
-#==================(CRUD CARRITO)====================>
+# ==================(CRUD CARRITO)====================>
 
 insert_cart = """
 	INSERT INTO cart (user_inv_id)
@@ -619,4 +489,3 @@ update_product_decrease_if_enough = """
 	WHERE product_id = %s AND stock >= %s
 	RETURNING stock;
 """
-

@@ -11,6 +11,7 @@ from core.models.mapper.sale_mapper import row_to_entity
 from core.models.entity.sale_entity import Sale
 from config.settings import log
 
+
 class SaleDAO:
     def __init__(self):
         self.db_conn = DatabaseConnection.get_connection_db()
@@ -25,10 +26,7 @@ class SaleDAO:
             log.info("[SaleDAO.create_sale] Creando una nueva venta.")
             cart_id = sale.cart_id
 
-            params = (
-                cart_id,
-                sale.notes,
-            )
+            params = (cart_id,)
 
             self.cursor.execute(insert_sale, params)
             row: Any = self.cursor.fetchone()

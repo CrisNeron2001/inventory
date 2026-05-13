@@ -1,7 +1,5 @@
 import flet as ft
-from typing import Optional, Callable
 from services.user_service import UserService
-from services.role_service import RoleService
 from core.models.dto.user_dto import UserDTO
 from gui.components.form.user_form import UserForm
 from gui.validators.user_form_validador import UserFormValidator
@@ -9,16 +7,13 @@ from gui.components.dialog.validate.success.success_dialog import success_dialog
 from gui.components.dialog.validate.error.error_dialog import error_dialog
 from config.settings import log
 
+
 class EditUserFormController:
     def __init__(self, page: ft.Page, user_id: int):
         self.user_service = UserService()
-        self.role_service = RoleService()
         self.validator = UserFormValidator()
         self.user_id = user_id
         self.page = page
-        self.roles = []
-        roles = self.role_service.get_all_roles()
-        self.roles = [ { 'role_inv_id': r.role_inv_id, 'name': r.name } for r in roles ]
 
     def load_user(self) -> dict:
         user = self.user_service.get_user_by_id(self.user_id)
@@ -27,9 +22,9 @@ class EditUserFormController:
         return {
             "user_inv_id": getattr(user, "user_inv_id", None),
             "first_name": getattr(user, "first_name", ""),
+            "middle_name": getattr(user, "middle_name", ""),
             "last_name": getattr(user, "last_name", ""),
-            "username": getattr(user, "username", ""),
-            "role_inv_id": getattr(user, "role_inv_id", None),
+            "rut": getattr(user, "rut", ""),
         }
 
     def on_submit(self, form_data: dict):
@@ -43,51 +38,51 @@ class EditUserFormController:
             except (TypeError, ValueError):
                 resolved_user_inv = self.user_id
 
-        role_raw = form_data.get("role_inv_id")
-        if role_raw is None or role_raw == "":
-            resolved_role_inv = 0
-        else:
-            try:
-                resolved_role_inv = int(role_raw)
-            except (TypeError, ValueError):
-                resolved_role_inv = 0
-                
         if not is_valid:
-            log.error(f"[EditUserFormController.on_submit] Error al validar el formulario: {errors}")
+            log.error(
+                f"[EditUserFormController.on_submit] Error al validar el formulario: {errors}"
+            )
             self.show_validate_error_dialog(errors)
             return
 
         dto = UserDTO(
             user_inv_id=resolved_user_inv,
-            role_inv_id=resolved_role_inv,
             first_name=form_data.get("first_name") or "",
+            middle_name=form_data.get("middle_name") or "",
             last_name=form_data.get("last_name") or "",
-            username=form_data.get("username") or "",
+            rut=form_data.get("rut") or "",
             password=form_data.get("password") or "",
-            role_inv=None,
         )
 
         user_updated = self.user_service.update_user(dto)
         if user_updated:
-            log.info(f"[EditUserFormController.on_submit] Usuario editado: {getattr(user_updated, 'username', '')}.")
-            return self.show_success_dialog(f"Usuario editado: {getattr(user_updated, 'username', '')}.")
+            log.info(
+                f"[EditUserFormController.on_submit] Usuario editado: {getattr(user_updated, 'username', '')}."
+            )
+            return self.show_success_dialog(
+                f"Usuario editado: {getattr(user_updated, 'username', '')}."
+            )
         else:
-            log.error("[EditUserFormController.on_submit] No se pudo editar el usuario. Intente nuevamente.")
-            return self.show_validate_error_dialog(["No se pudo editar el usuario. Intente nuevamente."])
+            log.error(
+                "[EditUserFormController.on_submit] No se pudo editar el usuario. Intente nuevamente."
+            )
+            return self.show_validate_error_dialog(
+                ["No se pudo editar el usuario. Intente nuevamente."]
+            )
 
     def create_form_layout(self) -> ft.Container:
         data = self.load_user()
-        form = UserForm(self.on_submit, roles=self.roles, is_edit=True)
+        form = UserForm(self.on_submit, is_edit=True)
         controls = form.create_controls(data)
         return ft.Container(content=ft.Column(controls), width=420)
-    
+
     def show_error_dialog(self, errors: list[str]):
         error_msg = "\n".join(errors)
         error_dialog(self.page, error_msg, on_close=lambda: self.page.go("/"))
-		
+
     def show_validate_error_dialog(self, errors: list[str]):
         error_msg = "\n".join(errors)
-        error_dialog(self.page, error_msg) 
-        
+        error_dialog(self.page, error_msg)
+
     def show_success_dialog(self, msg: str):
         success_dialog(self.page, msg, on_close=lambda: self.page.go("/"))

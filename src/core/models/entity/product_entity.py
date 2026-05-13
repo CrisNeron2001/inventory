@@ -4,6 +4,7 @@ from typing import Optional
 from core.models.entity.category_entity import Category
 from core.models.entity.brand_entity import Brand
 
+
 @dataclass
 class Product:
     product_id: Optional[int]
@@ -12,8 +13,8 @@ class Product:
     stock: int
     price: int
     sku: Optional[str]
-    is_available: bool
     category: Optional[Category]
     brand: Optional[Brand]
     created_at: datetime
     updated_at: datetime
+

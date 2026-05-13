@@ -33,6 +33,10 @@ This project is an inventory and sales management system designed for small and 
 
 ## Getting started
 
+```pwsh
+python -m venv .venv
+```
+
 Make sure you have Python installed and create a virtual environment. Then install the dependencies:
 
 ```pwsh

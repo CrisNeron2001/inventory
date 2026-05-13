@@ -5,18 +5,19 @@ from typing import List
 from config.settings import log
 import bcrypt
 
+
 class UserService:
     def __init__(self):
         self.dao = UserDAO()
 
     def _hash_password(self, plain: str) -> str:
         if isinstance(plain, str):
-            hashed = bcrypt.hashpw(plain.encode('utf-8'), bcrypt.gensalt())
-            return hashed.decode('utf-8')
+            hashed = bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt())
+            return hashed.decode("utf-8")
 
     def _verify_password(self, plain: str, hashed: str) -> bool:
         try:
-            return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+            return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
         except Exception:
             return False
 
@@ -38,38 +39,42 @@ class UserService:
             dto.password = ""
         return dto
 
-    def get_user_by_username(self, username: str) -> UserDTO | None:
-        user = self.dao.get_user_by_username(username=username)
-        log.info(f"[UserService.get_user_by_username] Obteniendo usuario por username: {user}")
+    def get_user_by_rut(self, rut: str) -> UserDTO | None:
+        user = self.dao.get_user_by_rut(rut=rut)
+        log.info(f"[UserService.get_user_by_rut] Obteniendo usuario por rut: {user}")
         dto = entity_to_dto(user) if user else None
         if dto:
             dto.password = ""
         return dto
 
-    def login(self, username: str, password: str) -> UserDTO | None:
-        log.info(f"[UserService.login] Intento de login para username={username}")
-        user_entity = self.dao.get_user_by_username(username=username)
+    def login(self, rut: str, password: str) -> UserDTO | None:
+        log.info(f"[UserService.login] Intento de login para rut={rut}")
+        user_entity = self.dao.get_user_by_rut(rut=rut)
         if not user_entity:
-            log.info(f"[UserService.login] El usuario {username} no existe")
+            log.info(f"[UserService.login] El usuario {rut} no existe")
             return None
-        stored_pw = getattr(user_entity, 'password', None)
+        stored_pw = getattr(user_entity, "password", None)
         if not stored_pw:
-            log.error(f"[UserService.login] El usuario {username} obtenido sin password en DB. user_entity={user_entity}")
+            log.error(
+                f"[UserService.login] El usuario {rut} obtenido sin password en DB. user_entity={user_entity}"
+            )
             return None
 
         try:
             ok = self._verify_password(password, stored_pw)
         except Exception as ex:
-            log.error(f"[UserService.login] Error verificando contraseña para {username}: {ex}")
+            log.error(
+                f"[UserService.login] Error verificando contraseña para {rut}: {ex}"
+            )
             ok = False
 
         if ok:
             dto = entity_to_dto(user_entity)
             dto.password = ""
-            log.info(f"[UserService.login] Iniciando sesión como {username}")
+            log.info(f"[UserService.login] Iniciando sesión como {rut}")
             return dto
         else:
-            log.info(f"[UserService.login] Credenciales invalidas para {username}")
+            log.info(f"[UserService.login] Credenciales invalidas para {rut}")
             return None
 
     def get_all_users(self) -> List[UserDTO]:

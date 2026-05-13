@@ -1,22 +1,20 @@
-from core.abstracts.form import Form
-from core.models.dto.cart_product_dto import CartProductDTO
-from typing import Optional, List, Any, cast
-from utils.helpers import increment_field, decrement_field
+from typing import Any, Optional
 import flet as ft
 
+from core.models.dto.cart_product_dto import CartProductDTO
 
-class ProductSelectionStep(Form):
-    def __init__(self):
-        super().__init__("Seleccionar productos", "product_selection")
+
+class ProductSelection:
+    def __init__(self, page: ft.Page):
+        self.page = page
         self.ddl: Optional[ft.Dropdown] = None
         self.qty: Optional[ft.TextField] = None
-        self.add_btn: Optional[ft.ElevatedButton] = None
+        self.add_button: Optional[ft.ElevatedButton] = None
         self.added_container: Optional[ft.Column] = None
         self.added_products: list[dict] = []
         self.qty_row: Optional[ft.Row] = None
         self.stock_label: Optional[ft.Text] = None
-
-        self._products: List[Any] = []
+        self._products: list[dict] = []
         self._products_by_id: dict = {}
         self._on_add_callback = None
         self._cart_service = None
@@ -130,78 +128,6 @@ class ProductSelectionStep(Form):
         if page is not None:
             page.update()
 
-    def create_controls(self, form_data: dict) -> list[ft.Control]:
-        products: List[Any] = form_data.get("products", [])
-        self._products = products
-        self._products_by_id = {getattr(p, "product_id", None): p for p in products}
-        self._on_add_callback = form_data.get("on_add")
-        self._cart_service = form_data.get("cart_service")
-        self._cart_id = form_data.get("cart_id")
-
-        options = [
-            ft.dropdown.Option(key=str(p.product_id), text=f"{p.name} - ${p.price}")
-            for p in products
-        ]
-        self.ddl = ft.Dropdown(
-            options=options,
-            width=360,
-            hint_text="Selecciona producto",
-            label="Producto",
-            on_change=self._on_product_change,
-        )
-        self.qty = ft.TextField(value="1", width=120, label="Cantidad")
-        self.qty_row = ft.Row(
-            controls=[
-                self.qty,
-                ft.IconButton(
-                    icon=ft.Icons.ARROW_DROP_UP,
-                    on_click=lambda e: increment_field(cast(ft.TextField, self.qty), 1),
-                ),
-                ft.IconButton(
-                    icon=ft.Icons.ARROW_DROP_DOWN,
-                    on_click=lambda e: decrement_field(cast(ft.TextField, self.qty), 1),
-                ),
-            ],
-            vertical_alignment=ft.CrossAxisAlignment.END,
-        )
-        self.stock_label = ft.Text("", size=12, color=ft.Colors.GREY_400)
-        self.add_btn = ft.ElevatedButton(text="Agregar", on_click=self._on_add_click)
-
-        self.added_container = ft.Column(
-            spacing=6, scroll=ft.ScrollMode.AUTO, expand=True
-        )
-
-        if getattr(self, "_cart_service", None) and getattr(self, "_cart_id", None):
-            self._reload_lines()
-
-        left = ft.Column(
-            [self.ddl, self.stock_label, self.qty_row, self.add_btn], spacing=8
-        )
-        right = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text("Productos agregados", weight=ft.FontWeight.W_600),
-                    ft.Divider(),
-                    self.added_container,
-                ],
-                spacing=6,
-            ),
-            padding=ft.Padding(8, 8, 8, 8),
-            border=ft.border.all(1, ft.Colors.GREY_700),
-            width=420,
-            height=350,
-        )
-
-        return [
-            ft.Text(self.title, size=18),
-            ft.Row([left, right], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        ]
-
-    def get_data(self) -> dict:
-        return {
-            "cart_items": list(self.added_products),
-        }
-
     def _on_product_change(self, e: ft.ControlEvent) -> None:
         if not self.ddl or not self.ddl.value:
             if self.stock_label is not None:
@@ -233,20 +159,6 @@ class ProductSelectionStep(Form):
         if self.stock_label is not None:
             self.stock_label.value = stock_text
             self.stock_label.update()
-
-    def validate(self) -> tuple[bool, list[str]]:
-        errors: list[str] = []
-        if not self.added_products:
-            errors.append("Debe agregar al menos un producto")
-        return (len(errors) == 0, errors)
-
-    def reset(self) -> None:
-        self.ddl = None
-        self.qty_row = None
-        self.added_products = []
-        if self.added_container is not None:
-            self.added_container.controls.clear()
-            self.added_container.update()
 
     def _on_add_click(self, e: ft.ControlEvent) -> None:
         if not self.ddl or not self.ddl.value:

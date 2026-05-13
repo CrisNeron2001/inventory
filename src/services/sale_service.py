@@ -3,18 +3,13 @@ from core.models.dto.sale_dto import SaleDTO
 from core.models.mapper.sale_mapper import dto_to_entity, entity_to_dto
 from typing import List
 from config.settings import log
-from services.session_service import SessionService
-from core.exceptions.exception import AuthorizationFailure
+
 
 class SaleService:
     def __init__(self):
         self.dao = SaleDAO()
 
     def create_sale(self, sale_dto: SaleDTO) -> SaleDTO | None:
-        if not SessionService().has_permission("sale.create"):
-            log.warning("[SaleService.create_sale] Intento de crear venta sin permiso 'sale.create'.")
-            raise AuthorizationFailure("No tienes permisos para registrar ventas.")
-
         sale = dto_to_entity(sale_dto)
         new_sale = self.dao.create_sale(sale=sale)
         log.info(f"[SaleService.create_sale] Creando una nueva venta: {new_sale}")
@@ -26,10 +21,6 @@ class SaleService:
         return entity_to_dto(sale) if sale else None
 
     def update_sale(self, sale_dto: SaleDTO) -> SaleDTO | None:
-        if not SessionService().has_permission("sale.update"):
-            log.warning("[SaleService.update_sale] Intento de actualizar venta sin permiso 'sale.update'.")
-            raise AuthorizationFailure("No tienes permisos para editar ventas.")
-
         sale = dto_to_entity(sale_dto)
         updated = self.dao.update_sale(sale=sale)
         log.info(f"[SaleService.update_sale] Modificando venta: {updated}")
