@@ -1,3 +1,4 @@
+import os
 from core.database.connections import DatabaseConnection
 from core.database.queries import (
     create_category,
@@ -96,3 +97,10 @@ class DatabaseSetup:
         finally:
             log.info("[DatabaseSetup.execute_check_entities] Cerrando conexión.")
             self.db_conn.close_connection_db()
+        
+
+    def get_db_path():
+        user_data_dir = os.path.expanduser("~/.MiPuntoVenta")
+        if not os.path.exists(user_data_dir):
+            os.makedirs(user_data_dir)
+        return os.path.join(user_data_dir, "inventario.db")
