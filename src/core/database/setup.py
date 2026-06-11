@@ -97,7 +97,6 @@ class DatabaseSetup:
         finally:
             log.info("[DatabaseSetup.execute_check_entities] Cerrando conexión.")
             self.db_conn.close_connection_db()
-        
 
     def get_db_path():
         user_data_dir = os.path.expanduser("~/.MiPuntoVenta")

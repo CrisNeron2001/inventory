@@ -17,4 +17,3 @@ class Product:
     brand: Optional[Brand]
     created_at: datetime
     updated_at: datetime
-

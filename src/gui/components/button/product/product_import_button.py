@@ -31,9 +31,15 @@ class ProductImportButton(Button):
 
     def on_import(self):
         try:
+
+            def finish_and_refresh(*_):
+                self.page.overlay.clear()
+                self.page.go("/")
+                self.page.update()
+
             product_import_dialog(
                 self.page,
-                on_import_finished=lambda *_: self.page.go("/") if self.page else None,
+                on_import_finished=finish_and_refresh,
             )
         except RuntimeError as e:
             error_dialog(

@@ -30,7 +30,7 @@ def product_import_dialog(
     loading_dialog = ft.CupertinoAlertDialog(
         title=ft.Text("Normalizando"),
         content=ft.Row(
-            [ft.ProgressRing(), ft.Text("Cargando...", size=14)],
+            [ft.ProgressRing(), ft.Text("Procesando Excel...", size=14)],
             alignment=ft.MainAxisAlignment.CENTER,
         ),
         actions=[],
@@ -41,20 +41,17 @@ def product_import_dialog(
         page.update()
 
     def pick_file(e: ft.ControlEvent):
+        alert_dialog.open = False
+        page.update()
+
         file_picker = ft.FilePicker()
         file_picker.on_result = on_file_picked
-
-        async def do_pick():
-            await asyncio.sleep(0.1)
-            if file_picker is not None:
-                file_picker.pick_files(allowed_extensions=["csv", "xlsx"])
 
         if file_picker not in page.overlay:
             page.overlay.append(file_picker)
             page.update()
-            page.run_task(do_pick)
-        else:
-            file_picker.pick_files(allowed_extensions=["xlsx"])
+
+        file_picker.pick_files(allowed_extensions=["csv", "xlsx"])
 
     def on_file_picked(e: ft.FilePickerResultEvent):
         nonlocal selected_file
@@ -62,7 +59,12 @@ def product_import_dialog(
             selected_file = e.files[0].path
 
             async def do_import():
-                await asyncio.sleep(0.1)
+                page.overlay.append(loading_dialog)
+                loading_dialog.open = True
+                page.update()
+
+                await asyncio.sleep(0.2)
+
                 service = ProductService()
                 import_data(service.import_products_form_excel)
 
@@ -71,17 +73,27 @@ def product_import_dialog(
     def import_data(import_func):
         nonlocal products, categories, brands, import_error
         if not selected_file:
-            import_error = "No se seleccionó ningún archivo."
-            products = []
-            categories = []
-            brands = []
-            show_result_dialog(success=False, message=import_error)
-            if on_import_finished:
-                on_import_finished(products, categories, brands, import_error)
+            loading_dialog.open = False
+            show_result_dialog(
+                success=False, message="No se seleccionó ningún archivo."
+            )
             return
+
         try:
             result = import_func(selected_file)
-            products = [p for p in result if p]
+
+            products = [p for p in result if p is not None]
+
+            if len(products) == 0:
+                loading_dialog.open = False
+                show_result_dialog(
+                    success=False,
+                    message="Error: No se pudieron leer filas válidas del Excel. Revisa las columnas.",
+                )
+                if on_import_finished:
+                    on_import_finished([], [], [], "Estructura inválida")
+                return
+
             categories_set = set()
             brands_set = set()
             for p in products:
@@ -91,46 +103,49 @@ def product_import_dialog(
                     else getattr(p, "category", None)
                 )
                 if cat_obj is not None:
-                    if isinstance(cat_obj, dict):
-                        name = str(cat_obj.get("name", "")).strip()
-                    else:
-                        name = str(getattr(cat_obj, "name", cat_obj)).strip()
+                    name = str(
+                        cat_obj.get("name", "")
+                        if isinstance(cat_obj, dict)
+                        else getattr(cat_obj, "name", cat_obj)
+                    ).strip()
                     if name:
                         categories_set.add(name)
+
                 brand_obj = (
                     p.get("brand") if isinstance(p, dict) else getattr(p, "brand", None)
                 )
                 if brand_obj is not None:
-                    if isinstance(brand_obj, dict):
-                        bname = str(brand_obj.get("name", "")).strip()
-                    else:
-                        bname = str(getattr(brand_obj, "name", brand_obj)).strip()
+                    bname = str(
+                        brand_obj.get("name", "")
+                        if isinstance(brand_obj, dict)
+                        else getattr(brand_obj, "name", brand_obj)
+                    ).strip()
                     if bname:
                         brands_set.add(bname)
+
             categories = [
                 {"category_id": None, "name": name} for name in sorted(categories_set)
             ]
             brands = [{"brand_id": None, "name": name} for name in sorted(brands_set)]
             import_error = None
+
+            # Ocultamos la rueda de carga antes de mostrar el éxito
+            loading_dialog.open = False
+            page.update()
+
             show_result_dialog(
                 success=True,
-                message=f"Se importaron {len(products)} productos, {len(categories)} categorías y {len(brands)} marcas correctamente.",
+                message=f"Se importaron {len(products)} productos correctamente en invdb.",
             )
-            if on_import_finished:
-                on_import_finished(products, categories, brands, import_error)
+
         except Exception as ex:
+            loading_dialog.open = False
             import_error = str(ex)
-            products = []
-            categories = []
-            brands = []
             show_result_dialog(
-                success=False, message=f"Error al importar: {import_error}"
+                success=False, message=f"Error crítico al importar: {import_error}"
             )
-            if on_import_finished:
-                on_import_finished(products, categories, brands, import_error)
 
     def show_result_dialog(success: bool, message: str):
-        loading_dialog.open = False
         result_dialog = ft.CupertinoAlertDialog(
             title=ft.Text(
                 "Importación exitosa" if success else "Error de importación",
@@ -138,7 +153,9 @@ def product_import_dialog(
             ),
             content=ft.Text(message, size=15),
             actions=[
-                ft.TextButton(text="Cerrar", on_click=lambda e: close_result_dialog(e))
+                ft.TextButton(
+                    text="Continuar", on_click=lambda e: close_result_dialog(e)
+                )
             ],
         )
         page.overlay.append(result_dialog)
@@ -146,10 +163,10 @@ def product_import_dialog(
         page.update()
 
     def close_result_dialog(e):
-        for dlg in list(page.overlay):
-            if isinstance(dlg, ft.CupertinoAlertDialog):
-                dlg.open = False
+        page.overlay.clear()
         page.update()
+        if on_import_finished:
+            on_import_finished(products, categories, brands, import_error)
 
     if page:
         page.overlay.append(alert_dialog)

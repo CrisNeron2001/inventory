@@ -14,4 +14,3 @@ class ProductDTO:
     sku: Optional[str]
     category: Optional[CategoryDTO]
     brand: Optional[BrandDTO]
-
