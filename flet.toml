@@ -1,0 +1,5 @@
+[packaging]
+requirements = "requirements.txt"
+
+[packaging.linux]
+product_name = "POS-Inventario"
